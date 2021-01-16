@@ -11,20 +11,19 @@ using namespace std;
 SDL_Window* window = NULL;
 SDL_Surface* screen = NULL;
 
-#define szerokosc 512
-#define wysokosc 340
-
 #define tytul "GKiM2020 - Projekt - Baran Mikolaj, Czuba Lukasz, Dyrek Kacper, Jurek Wiktor"
 
-
+int szerokosc, wysokosc;
 void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B);
+void ladujBMP(char const* nazwa, int x, int y);
 SDL_Color getPixel (int x, int y);
 
 void czyscEkran(Uint8 R, Uint8 G, Uint8 B);
 
-void encodeHeader(int w, int h, int p, bool d, bool c);
+void encodeHeader(string name, int w, int h, int p, bool d, bool c);
 void decodeHeader();
 void defineProperties();
+int preInspection(int w, int h, char* name);
 
 SDL_Color paleta[256];
 int ileKolorow = 0;
@@ -68,46 +67,62 @@ int sprawdzKolor(SDL_Color kolor){
 }
 
 void defineProperties(){
+    string name;
     int width = 512;
     int height = 340;
     int palette;
     bool dithering;
     bool compression = false;
-    cout << "Podaj szerokosc bitmapy (max 1024): ";
-    cin >> width;
-    while(width < 0 || width > 1024){
-        cout << "Niepoprawna wartosc. Podaj szerokosc bitmapy jeszcze raz (max 1024): ";
-        cin >> width;
+
+    cout << "Podaj nazwe pliku bitmapy: ";
+    cin >> name;
+
+    //zamiana string na char;
+    char name_char[name.length()+1];
+    strcpy(name_char, name.c_str());
+
+    SDL_Surface* bmp = SDL_LoadBMP(name_char);
+    if (!bmp) {
+        printf("Unable to load bitmap: %s\n", SDL_GetError());
     }
 
-    cout << "Podaj wysokosc bitmapy (max 1024): ";
-    cin >> height;
-    while(height < 0 || height > 1024){
-        cout << "Niepoprawna wartosc. Podaj wysokosc bitmapy jeszcze raz (max 1024): ";
-        cin >> height;
+    width = bmp->w;
+    szerokosc = width;  //przypisanie globalnej szerokosci potrzebnej np do metody setpixel;
+    cout << "Szerokosc bitmapy: " << width << endl;
+
+    height = bmp->h;
+    wysokosc = height;  //przypisanie globalnej wysokosci potrzebnej np do metody setpixel;
+    cout << "Wysokosc bitmapy: " << height << endl;
+
+    if(height > 1024 && width > 1024) {
+        //nazwa za duzej bitmapy do testow: oversize.bmp
+        cout << "Wybierz obraz o mniejszej rozdzielczosci (max: 1024/1024px)!" << endl << endl;
     }
-    cout << "Wybierz rodzaj palety uzywanej do zapisu bitmapy: \n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej" << endl << "Twoj wybor: ";
-    cin >> palette;
-    while(palette < 0 || palette > 2){
-        cout << "Niepoprawna wartosc. Wybierz rodzaj palety jeszcze raz." << endl;
-        cout << "\n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej" << endl << "Twoj wybor: ";
+    else {
+        cout << "Wybierz rodzaj palety uzywanej do zapisu bitmapy: \n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej";
+        preInspection(width, height, name_char);
+        cout << "Twoj wybor: ";
         cin >> palette;
+        while(palette < 0 || palette > 2){
+            cout << "Niepoprawna wartosc. Wybierz rodzaj palety jeszcze raz." << endl;
+            cout << "\n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej" << endl << "Twoj wybor: ";
+            cin >> palette;
+        }
+        cout << "Wybierz, czy do zapisu obrazka uzyc ditheringu: \n\t 0 - nie \n\t 1 - tak" << endl << "Twoj wybor: ";
+        cin >> dithering;
+
+        cout << endl << "Konwertuje..." << endl << endl;
+
+        encodeHeader(name, width, height, palette, dithering, compression);
     }
-    cout << "Wybierz, czy do zapisu obrazka uzyc ditheringu: \n\t 0 - nie \n\t 1 - tak" << endl << "Twoj wybor: ";
-    cin >> dithering;
-
-    cout << "Konwertuje..." << endl;
-
-    encodeHeader(width, height, palette, dithering, compression);
-
-    cout << "Gotowe" << endl;
 }
 
-void encodeHeader(int w, int h, int p, bool d, bool c) {
+void encodeHeader(string name, int w, int h, int p, bool d, bool c) {
     SDL_Color kolor;
     char identyfikator[] = "BCDJ";
     Uint8 indeks = 0;
     ileKolorow = 0;
+    string newName = name.erase(name.size() - 4) + ".bcdj";
 
     Uint16 head1 = (Uint16)w;
     cout << "Width: " << bitset<16>(head1) << endl;
@@ -136,10 +151,10 @@ void encodeHeader(int w, int h, int p, bool d, bool c) {
     head2 = head2 | temp2;
     cout << "4 bity height i 2 bity palety, bit dithering i 0 z kompresji: " << bitset<8>(head2) << endl;
 
-    cout << "\n\nPelny naglowek (tylko bez palety): " << bitset<16>(head1) << bitset<8>(head2) << endl;
+    cout << "Pelny naglowek (tylko bez palety): " << bitset<16>(head1) << bitset<8>(head2) << endl << endl;
 
-    cout<<"Zapisujemy plik 'test.bcdj' uzywajac metody write()" << endl;
-    ofstream wyjscie("test.bcdj", ios::binary);
+    cout<<"Zapisujemy plik " << newName <<" uzywajac metody write()" << endl << endl;
+    ofstream wyjscie(newName, ios::binary);
 
     wyjscie.write((char*)&identyfikator, sizeof(char)*4);
     wyjscie.write((char*)&head1, sizeof(Uint16));
@@ -177,11 +192,6 @@ void encodeHeader(int w, int h, int p, bool d, bool c) {
     }
 
     wyjscie.close();
-
-    cout << "\n\nTeraz nastapi odczyt przekonwertowanego pliku..." << endl;
-    decodeHeader();
-
-    //SDL_UpdateWindowSurface(window);
 }
 
 void decodeHeader(){
@@ -195,9 +205,13 @@ void decodeHeader(){
     Uint8 rodzajPalety = 0;
     bool dithering = true;
     bool kompresja = true;
+    string name;
 
-    cout<<"Odczytujemy plik 'test.bcdj' uzywajac metody read()" << endl;
-    ifstream wejscie("test.bcdj", ios::binary);
+    cout << "Podaj nazwe pliku do zdekodowania: ";
+    cin >> name;
+
+    cout << endl << "Odczytujemy plik " << name << " uzywajac metody read()" << endl;
+    ifstream wejscie(name, ios::binary);
 
     wejscie.read((char*)&identyfikator, sizeof(char)*4);
     wejscie.read((char*)&head1, sizeof(Uint16));
@@ -220,6 +234,70 @@ void decodeHeader(){
     cout << "kompresja: " << kompresja << endl;
 
     wejscie.close();
+}
+
+int preInspection(int w, int h, char* name) {
+    cout << endl << "(za pomoca klawiszy '0','1','2' zmieniaj palety)"<< endl;
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+		printf("SDL_Init Error: %s\n", SDL_GetError());
+		return EXIT_FAILURE;
+    }
+
+    window = SDL_CreateWindow(tytul, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w*2, h*2, SDL_WINDOW_SHOWN);
+
+    if (window == NULL) {
+        printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+
+    screen = SDL_GetWindowSurface(window);
+    if (screen == NULL) {
+        fprintf(stderr, "SDL_GetWindowSurface Error: %s\n", SDL_GetError());
+    return false;
+    }
+
+    SDL_UpdateWindowSurface(window);
+    ladujBMP(name, 0, 0);
+
+    bool done = false;
+    SDL_Event event;
+    // główna pętla programu
+    while (SDL_WaitEvent(&event)) {
+        // sprawdzamy czy pojawiło się zdarzenie
+        switch (event.type) {
+            case SDL_QUIT:
+                done = true;
+                break;
+            // sprawdzamy czy został wciśnięty klawisz
+            case SDL_KEYDOWN: {
+                // wychodzimy, gdy wciśnięto ESC
+                if (event.key.keysym.sym == SDLK_ESCAPE)
+                    done = true;
+                if (event.key.keysym.sym == SDLK_0) {
+
+                }
+                if (event.key.keysym.sym == SDLK_1) {
+
+                }
+                if (event.key.keysym.sym == SDLK_2) {
+
+                }
+                else
+                    break;
+               }
+        }
+        if (done) break;
+    }
+
+    if (screen) {
+        SDL_FreeSurface(screen);
+    }
+
+    if (window) {
+        SDL_DestroyWindow(window);
+    }
+
+    SDL_Quit();
 }
 
 void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B)
@@ -441,71 +519,5 @@ int main(int argc, char* argv[]) {
         }
     }while(choice != 0);
 
-
-    /*if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-		printf("SDL_Init Error: %s\n", SDL_GetError());
-		return EXIT_FAILURE;
-    }
-
-    window = SDL_CreateWindow(tytul, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, szerokosc*2, wysokosc*2, SDL_WINDOW_SHOWN);
-
-    if (window == NULL) {
-        printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
-        return EXIT_FAILURE;
-    }
-
-    screen = SDL_GetWindowSurface(window);
-    if (screen == NULL) {
-        fprintf(stderr, "SDL_GetWindowSurface Error: %s\n", SDL_GetError());
-    return false;
-    }
-    SDL_UpdateWindowSurface(window);
-
-
-    bool done = false;
-    SDL_Event event;
-    // główna pętla programu
-    while (SDL_WaitEvent(&event)) {
-        // sprawdzamy czy pojawiło się zdarzenie
-        switch (event.type) {
-            case SDL_QUIT:
-                done = true;
-                break;
-            // sprawdzamy czy został wciśnięty klawisz
-            case SDL_KEYDOWN: {
-                // wychodzimy, gdy wciśnięto ESC
-                if (event.key.keysym.sym == SDLK_ESCAPE)
-                    done = true;
-                if (event.key.keysym.sym == SDLK_a)
-                    ladujBMP("obrazek1.bmp", 0, 0);
-                if (event.key.keysym.sym == SDLK_s)
-                    ladujBMP("obrazek2.bmp", 0, 0);
-                if (event.key.keysym.sym == SDLK_d)
-                    ladujBMP("obrazek3.bmp", 0, 0);
-                if (event.key.keysym.sym == SDLK_f)
-                    ladujBMP("obrazek4.bmp", 0, 0);
-                if (event.key.keysym.sym == SDLK_g)
-                    ladujBMP("obrazek5.bmp", 0, 0);
-                if (event.key.keysym.sym == SDLK_h)
-                    ladujBMP("obrazek6.bmp", 0, 0);
-                if (event.key.keysym.sym == SDLK_b)
-                    czyscEkran(0, 0, 10);
-                else
-                    break;
-               }
-        }
-        if (done) break;
-    }
-
-    if (screen) {
-        SDL_FreeSurface(screen);
-    }
-
-    if (window) {
-        SDL_DestroyWindow(window);
-    }
-
-
-    SDL_Quit();*/
     return 0;
 }
