@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <bitset>
+#include <vector>
+#include <algorithm>
+
 using namespace std;
 
 SDL_Window* window = NULL;
@@ -15,56 +18,25 @@ SDL_Surface* screen = NULL;
 
 int szerokosc, wysokosc;
 void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B);
+SDL_Color getPixelSurface(int x, int y, SDL_Surface *surface);
 void ladujBMP(char const* nazwa, int x, int y);
 SDL_Color getPixel (int x, int y);
-
 void czyscEkran(Uint8 R, Uint8 G, Uint8 B);
 
-void encodeHeader(string name, int w, int h, int p, bool d, bool c);
+void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp);
 void decodeHeader();
 void defineProperties();
 int preInspection(int w, int h, char* name);
 
-SDL_Color paleta[256];
-int ileKolorow = 0;
+struct colorPalette {
+    SDL_Color color;
+    int counter = 0;
+};
+bool sortByCounter(const colorPalette &lhs, const colorPalette &rhs) { return lhs.counter > rhs.counter; }
+vector<colorPalette> customPalette;
 
-int dodajKolor(SDL_Color kolor){
-    int aktualnyKolor = ileKolorow;
-    paleta[aktualnyKolor] = kolor;
-
-    cout<<aktualnyKolor<<": ["<<(int)kolor.r<<", "<<(int)kolor.g<<", "<<(int)kolor.b<<"]"<<endl;
-
-    ileKolorow++;
-    return aktualnyKolor;
-}
-
-bool porownajKolory(SDL_Color k1, SDL_Color k2){
-    bool wynik = true;
-
-    if(k1.r != k2.r) wynik = false;
-    if(k1.g != k2.g) wynik = false;
-    if(k1.b != k2.b) wynik = false;
-
-    return wynik;
-}
-
-int sprawdzKolor(SDL_Color kolor){
-    int wynik = -1;
-
-    if(ileKolorow > 0){
-        for(int k=0; k<ileKolorow; k++){
-            if(porownajKolory(kolor, paleta[k])){
-                wynik = k;
-            }
-        }
-    }
-
-    if(wynik < 0){
-        wynik = dodajKolor(kolor);
-    }
-
-    return wynik;
-}
+SDL_Color greyPalette[16];
+SDL_Color preDefPalette[16];
 
 void defineProperties(){
     string name;
@@ -113,15 +85,15 @@ void defineProperties(){
 
         cout << endl << "Konwertuje..." << endl << endl;
 
-        encodeHeader(name, width, height, palette, dithering, compression);
+        encodeHeader(name, width, height, palette, dithering, compression, bmp);
     }
 }
 
-void encodeHeader(string name, int w, int h, int p, bool d, bool c) {
-    SDL_Color kolor;
+void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp) {
+    SDL_Color color;
     char identyfikator[] = "BCDJ";
     Uint8 indeks = 0;
-    ileKolorow = 0;
+    int ileKolorow = 0;
     string newName = name.erase(name.size() - 4) + ".bcdj";
 
     Uint16 head1 = (Uint16)w;
@@ -151,7 +123,7 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c) {
     head2 = head2 | temp2;
     cout << "4 bity height i 2 bity palety, bit dithering i 0 z kompresji: " << bitset<8>(head2) << endl;
 
-    cout << "Pelny naglowek (tylko bez palety): " << bitset<16>(head1) << bitset<8>(head2) << endl << endl;
+    cout << "Pelny naglowek (tylko bez palety): " << bitset<16>(head1) << bitset<8>(head2) << endl;
 
     cout<<"Zapisujemy plik " << newName <<" uzywajac metody write()" << endl << endl;
     ofstream wyjscie(newName, ios::binary);
@@ -160,35 +132,48 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c) {
     wyjscie.write((char*)&head1, sizeof(Uint16));
     wyjscie.write((char*)&head2, sizeof(Uint8));
 
-    if(p == 2){ // gdy wybrana paleta dedykowana, to ja tworzymy i zapisujemy do naglowka
-     /*   for(int y=0; y<h; y++){
-            for(int x=0; x<w; x++){
-                kolor = getPixel(x,y);
-                sprawdzKolor(kolor);
+    if(p == 2) { // gdy wybrana paleta dedykowana, to ja tworzymy i zapisujemy do naglowka
+        customPalette.clear();
+        for(int y = 0; y < h; y++){
+            for(int x = 0; x < w; x++){
+                color = getPixelSurface(x, y, bmp);
+
+                bool existFlag = false;
+                for(colorPalette &element : customPalette) {
+                    if((int)color.r == element.color.r &&
+                       (int)color.g == element.color.g &&
+                       (int)color.b == element.color.b ) {
+                           existFlag = true;
+                           element.counter++;
+                       }
+                }
+
+                if(!existFlag) {
+                    colorPalette newColor;
+                    newColor.color = color;
+                    newColor.counter++;
+                    customPalette.push_back(newColor);
+                }
             }
         }
+        sort(customPalette.begin(), customPalette.end(), sortByCounter);
 
-        Uint8 kolory = ileKolorow;
-        SDL_Color* paleta_kolorow = new SDL_Color[kolory];
-
-        wyjscie.write((char*)&kolory, sizeof(Uint8));
-
-        for(Uint8 i=0; i<kolory; i++){
-            paleta_kolorow[i] = paleta[i];
-            kolor = paleta_kolorow[i];
-            wyjscie.write((char*)&kolor.r, sizeof(Uint8));
-            wyjscie.write((char*)&kolor.g, sizeof(Uint8));
-            wyjscie.write((char*)&kolor.b, sizeof(Uint8));
-        }
-
-        for(int y=0; y<h; y++){
-            for(int x=0; x<w; x++){
-                kolor = getPixel(x,y);
-                indeks = sprawdzKolor(kolor);
-                wyjscie.write((char*)&indeks, sizeof(Uint8));
+        cout << "numberOfCustomColors: " << customPalette.size() << endl;
+        for(int i = 0; i < 16; i++) {
+            if(i >= customPalette.size()){
+                cout << "Koniec palety - 0,0,0" << endl;
+                Uint8 blank;
+                wyjscie.write((char*)&blank, sizeof(Uint8));
+                wyjscie.write((char*)&blank, sizeof(Uint8));
+                wyjscie.write((char*)&blank, sizeof(Uint8));
+            }
+            else {
+                cout << (int)customPalette[i].color.r << "," << (int)customPalette[i].color.g << "," << (int)customPalette[i].color.b << "  " << "count: "<< customPalette[i].counter << endl;
+                wyjscie.write((char*)&customPalette[i].color.r, sizeof(Uint8));
+                wyjscie.write((char*)&customPalette[i].color.g, sizeof(Uint8));
+                wyjscie.write((char*)&customPalette[i].color.b, sizeof(Uint8));
             }
         }
-        */
     }
 
     wyjscie.close();
@@ -494,6 +479,24 @@ void czyscEkran(Uint8 R, Uint8 G, Uint8 B)
 
 
 int main(int argc, char* argv[]) {
+    //wypelnienie palet
+    for(int i = 0; i < 16; i++) {
+        greyPalette[i].r = i * 17;
+        greyPalette[i].g = i * 17;
+        greyPalette[i].b = i * 17;
+    }
+
+    for(int i = 0; i < 16; i++) {
+        Uint8 bin = i;
+        int r = bitset<1>(bin>>3).to_ulong() * 255;
+        int g = bitset<2>(bin>>1).to_ulong() * 85;
+        int b = bitset<1>(bin).to_ulong() * 255;
+        preDefPalette[i].r = r;
+        preDefPalette[i].g = g;
+        preDefPalette[i].b = b;
+    }
+    //koniec wypelniana palet
+
     int choice = 0;
 
     do{

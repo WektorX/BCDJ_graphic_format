@@ -1356,7 +1356,7 @@
 	"begin_code.h"
 	"close_code.h"
 
-1610800647 source:c:\users\lukas\documents\codeblock\gkim_project\gkim2020-lab5.cpp
+1610816526 source:c:\users\lukas\documents\codeblock\gkim_project\gkim2020-lab5.cpp
 	<exception>
 	<string.h>
 	<iostream>
@@ -1365,6 +1365,8 @@
 	<stdlib.h>
 	<SDL2/SDL.h>
 	<bitset>
+	<vector>
+	<algorithm>
 
 1610793397 c:\users\lukas\documents\codeblock\gkim_project\sdl2\include\sdl2\sdl.h
 	"SDL_main.h"
