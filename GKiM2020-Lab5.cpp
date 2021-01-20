@@ -7,6 +7,7 @@
 #include <SDL2/SDL.h>
 #include <bitset>
 #include <vector>
+#include <math.h>
 #include <algorithm>
 
 using namespace std;
@@ -27,18 +28,86 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
 void decodeHeader();
 void defineProperties();
 int preInspection(int w, int h, char* name);
+int preInspectionDithering(int w, int h, char* name,int palette);
 
-struct colorPalette {
+struct colorPalette
+{
     SDL_Color color;
     int counter = 0;
 };
-bool sortByCounter(const colorPalette &lhs, const colorPalette &rhs) { return lhs.counter > rhs.counter; }
+bool sortByCounter(const colorPalette &lhs, const colorPalette &rhs)
+{
+    return lhs.counter > rhs.counter;
+}
 vector<colorPalette> customPalette;
 
 SDL_Color greyPalette[16];
 SDL_Color preDefPalette[16];
 
-void defineProperties(){
+
+void preDefPaletteFunction()
+{
+
+    int R,G,B;
+    SDL_Color kolor;
+    for(int y=0; y<wysokosc; y++)
+    {
+        for(int x=0; x<szerokosc; x++)
+        {
+
+            kolor = getPixel(x,y);
+            R = (int)kolor.r;
+            G = (int)kolor.g;
+            B = (int)kolor.b;
+
+            R = round(R * 1.0 /255);
+            G = round(G * 3.0 / 255);
+            B = round(B * 1.0 / 255);
+
+            R = R * 255;
+            G = (G * 255) / 3.0;
+            B = B *255;
+            setPixel(x,y,R,G,B);
+
+        }
+    }
+}
+
+void greyPaletteFunction()
+{
+
+    SDL_Color kolor;
+    int R,G,B, BW;
+    for(int y=0; y<wysokosc; y++)
+    {
+        for(int x=0; x<szerokosc; x++)
+        {
+
+            kolor = getPixel(x,y);
+            R = (int)kolor.r;
+            G = (int)kolor.g;
+            B = (int)kolor.b;
+
+            BW = round(0.299 * R + 0.587 * G + 0.114 *B);
+            BW = round(BW * 15.0 / 255);
+            BW = BW * 255 / 15.0;
+            setPixel(x,y,BW,BW,BW);
+
+        }
+    }
+
+}
+
+void Dithering()
+{
+
+
+}
+
+
+
+void defineProperties()
+{
     string name;
     int width = 512;
     int height = 340;
@@ -54,7 +123,8 @@ void defineProperties(){
     strcpy(name_char, name.c_str());
 
     SDL_Surface* bmp = SDL_LoadBMP(name_char);
-    if (!bmp) {
+    if (!bmp)
+    {
         printf("Unable to load bitmap: %s\n", SDL_GetError());
     }
 
@@ -66,22 +136,25 @@ void defineProperties(){
     wysokosc = height;  //przypisanie globalnej wysokosci potrzebnej np do metody setpixel;
     cout << "Wysokosc bitmapy: " << height << endl;
 
-    if(height > 1024 && width > 1024) {
+    if(height > 1024 && width > 1024)
+    {
         //nazwa za duzej bitmapy do testow: oversize.bmp
         cout << "Wybierz obraz o mniejszej rozdzielczosci (max: 1024/1024px)!" << endl << endl;
     }
-    else {
+    else
+    {
         cout << "Wybierz rodzaj palety uzywanej do zapisu bitmapy: \n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej";
-        preInspection(width, height, name_char);
-        cout << "Twoj wybor: ";
-        cin >> palette;
-        while(palette < 0 || palette > 2){
+        palette = preInspection(width, height, name_char);
+        cout << "Twoj wybor: "<<palette<<endl;
+        while(palette < 0 || palette > 2)
+        {
             cout << "Niepoprawna wartosc. Wybierz rodzaj palety jeszcze raz." << endl;
             cout << "\n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej" << endl << "Twoj wybor: ";
             cin >> palette;
         }
-        cout << "Wybierz, czy do zapisu obrazka uzyc ditheringu: \n\t 0 - nie \n\t 1 - tak" << endl << "Twoj wybor: ";
-        cin >> dithering;
+        cout << "Wybierz, czy do zapisu obrazka uzyc ditheringu: \n\t 0 - nie \n\t 1 - tak" << endl;
+        dithering = preInspectionDithering(width, height, name_char, palette);
+        cout<< "Twoj wybor: "<<dithering<<endl;
 
         cout << endl << "Konwertuje..." << endl << endl;
 
@@ -89,10 +162,11 @@ void defineProperties(){
     }
 }
 
-void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp) {
+void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp)
+{
     SDL_Color color;
     char identyfikator[] = "BCDJ";
-    Uint8 indeks = 0;
+
     int ileKolorow = 0;
     string newName = name.erase(name.size() - 4) + ".bcdj";
 
@@ -132,23 +206,29 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
     wyjscie.write((char*)&head1, sizeof(Uint16));
     wyjscie.write((char*)&head2, sizeof(Uint8));
 
-    if(p == 2) { // gdy wybrana paleta dedykowana, to ja tworzymy i zapisujemy do naglowka
+    if(p == 2)   // gdy wybrana paleta dedykowana, to ja tworzymy i zapisujemy do naglowka
+    {
         customPalette.clear();
-        for(int y = 0; y < h; y++){
-            for(int x = 0; x < w; x++){
+        for(int y = 0; y < h; y++)
+        {
+            for(int x = 0; x < w; x++)
+            {
                 color = getPixelSurface(x, y, bmp);
 
                 bool existFlag = false;
-                for(colorPalette &element : customPalette) {
+                for(colorPalette &element : customPalette)
+                {
                     if((int)color.r == element.color.r &&
-                       (int)color.g == element.color.g &&
-                       (int)color.b == element.color.b ) {
-                           existFlag = true;
-                           element.counter++;
-                       }
+                            (int)color.g == element.color.g &&
+                            (int)color.b == element.color.b )
+                    {
+                        existFlag = true;
+                        element.counter++;
+                    }
                 }
 
-                if(!existFlag) {
+                if(!existFlag)
+                {
                     colorPalette newColor;
                     newColor.color = color;
                     newColor.counter++;
@@ -159,15 +239,18 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
         sort(customPalette.begin(), customPalette.end(), sortByCounter);
 
         cout << "numberOfCustomColors: " << customPalette.size() << endl;
-        for(int i = 0; i < 16; i++) {
-            if(i >= customPalette.size()){
+        for(int i = 0; i < 16; i++)
+        {
+            if(i >= customPalette.size())
+            {
                 cout << "Koniec palety - 0,0,0" << endl;
                 Uint8 blank;
                 wyjscie.write((char*)&blank, sizeof(Uint8));
                 wyjscie.write((char*)&blank, sizeof(Uint8));
                 wyjscie.write((char*)&blank, sizeof(Uint8));
             }
-            else {
+            else
+            {
                 cout << (int)customPalette[i].color.r << "," << (int)customPalette[i].color.g << "," << (int)customPalette[i].color.b << "  " << "count: "<< customPalette[i].counter << endl;
                 wyjscie.write((char*)&customPalette[i].color.r, sizeof(Uint8));
                 wyjscie.write((char*)&customPalette[i].color.g, sizeof(Uint8));
@@ -175,11 +258,13 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
             }
         }
     }
-
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     wyjscie.close();
 }
 
-void decodeHeader(){
+void decodeHeader()
+{
     char identyfikator[] = "    ";
     Uint16 szerokoscObrazka = 0;
     Uint16 wysokoscObrazka = 0;
@@ -221,24 +306,29 @@ void decodeHeader(){
     wejscie.close();
 }
 
-int preInspection(int w, int h, char* name) {
-    cout << endl << "(za pomoca klawiszy '0','1','2' zmieniaj palety)"<< endl;
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-		printf("SDL_Init Error: %s\n", SDL_GetError());
-		return EXIT_FAILURE;
+int preInspection(int w, int h, char* name)
+{
+    cout << endl << "(za pomoca klawiszy '0','1','2' zmieniaj palety,  Esc - aby przejsc dalej)"<< endl;
+    int out=0;
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+    {
+        printf("SDL_Init Error: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
     }
 
     window = SDL_CreateWindow(tytul, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w*2, h*2, SDL_WINDOW_SHOWN);
 
-    if (window == NULL) {
+    if (window == NULL)
+    {
         printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
         return EXIT_FAILURE;
     }
 
     screen = SDL_GetWindowSurface(window);
-    if (screen == NULL) {
+    if (screen == NULL)
+    {
         fprintf(stderr, "SDL_GetWindowSurface Error: %s\n", SDL_GetError());
-    return false;
+        return false;
     }
 
     SDL_UpdateWindowSurface(window);
@@ -247,63 +337,159 @@ int preInspection(int w, int h, char* name) {
     bool done = false;
     SDL_Event event;
     // główna pętla programu
-    while (SDL_WaitEvent(&event)) {
+    while (SDL_WaitEvent(&event))
+    {
         // sprawdzamy czy pojawiło się zdarzenie
-        switch (event.type) {
-            case SDL_QUIT:
+        switch (event.type)
+        {
+        case SDL_QUIT:
+            done = true;
+            break;
+        // sprawdzamy czy został wciśnięty klawisz
+        case SDL_KEYDOWN:
+        {
+            // wychodzimy, gdy wciśnięto ESC
+            if (event.key.keysym.sym == SDLK_ESCAPE)
                 done = true;
+            if (event.key.keysym.sym == SDLK_0)
+            {
+                ladujBMP(name, 0, 0);
+                preDefPaletteFunction();
+                out = 0;
+                SDL_UpdateWindowSurface(window);
+            }
+            if (event.key.keysym.sym == SDLK_1)
+            {
+
+                ladujBMP(name, 0, 0);
+                greyPaletteFunction();
+                out = 1;
+                SDL_UpdateWindowSurface(window);
+
+            }
+            if (event.key.keysym.sym == SDLK_2)
+            {
+                out =2;
+                ladujBMP(name, 0, 0);
+            }
+            else
                 break;
-            // sprawdzamy czy został wciśnięty klawisz
-            case SDL_KEYDOWN: {
-                // wychodzimy, gdy wciśnięto ESC
-                if (event.key.keysym.sym == SDLK_ESCAPE)
-                    done = true;
-                if (event.key.keysym.sym == SDLK_0) {
-
-                }
-                if (event.key.keysym.sym == SDLK_1) {
-
-                }
-                if (event.key.keysym.sym == SDLK_2) {
-
-                }
-                else
-                    break;
-               }
+        }
         }
         if (done) break;
     }
 
-    if (screen) {
-        SDL_FreeSurface(screen);
-    }
+    /*    if (screen)
+        {
+            SDL_FreeSurface(screen);
+        }
 
-    if (window) {
-        SDL_DestroyWindow(window);
-    }
+        if (window)
+        {
+            SDL_DestroyWindow(window);
+        }
 
-    SDL_Quit();
+        SDL_Quit();*/
+    return out;
 }
+
+
+
+int preInspectionDithering(int w, int h, char* name, int palette)
+{
+    cout << endl << "(za pomoca klawiszy '0','1' podgląd z ditheringiem lub bez,  Esc - aby przejsc dalej)"<< endl;
+    int out;
+    bool done = false;
+    SDL_Event event;
+    // główna pętla programu
+    while (SDL_WaitEvent(&event))
+    {
+        // sprawdzamy czy pojawiło się zdarzenie
+        switch (event.type)
+        {
+        case SDL_QUIT:
+            done = true;
+            break;
+        // sprawdzamy czy został wciśnięty klawisz
+        case SDL_KEYDOWN:
+        {
+            // wychodzimy, gdy wciśnięto ESC
+            if (event.key.keysym.sym == SDLK_ESCAPE)
+                done = true;
+            if (event.key.keysym.sym == SDLK_0)
+            {
+                out = 0;
+                ladujBMP(name, 0, 0);
+                switch(palette)
+                {
+
+                case 0:
+                    preDefPaletteFunction();
+                    break;
+                case 1:
+                    greyPaletteFunction();
+                    break;
+                case 2:
+                    cout<<"2"<<endl;
+                    break;
+                }
+                SDL_UpdateWindowSurface(window);
+            }
+            if (event.key.keysym.sym == SDLK_1)
+            {
+                out = 1;
+                ladujBMP(name, 0, 0);
+                switch(palette)
+                {
+                case 0:
+                    preDefPaletteFunction();
+                    break;
+                case 1:
+                    greyPaletteFunction();
+                    break;
+                case 2:
+                    cout<<"2"<<endl;
+                    break;
+                }
+                Dithering();
+                cout<<"dithering"<<endl;
+                SDL_UpdateWindowSurface(window);
+
+            }
+            else{
+                break;
+            }
+
+
+        }
+        }
+        if (done) break;
+    }
+    return out;
+
+}
+
+
 
 void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B)
 {
-  if ((x>=0) && (x<szerokosc) && (y>=0) && (y<wysokosc))
-  {
-    /* Zamieniamy poszczególne składowe koloru na format koloru piksela */
-    Uint32 pixel = SDL_MapRGB(screen->format, R, G, B);
-
-    /* Pobieramy informację ile bajtów zajmuje jeden piksel */
-    int bpp = screen->format->BytesPerPixel;
-
-    /* Obliczamy adres piksela */
-    Uint8 *p1 = (Uint8 *)screen->pixels + (y*2) * screen->pitch + (x*2) * bpp;
-    Uint8 *p2 = (Uint8 *)screen->pixels + (y*2+1) * screen->pitch + (x*2) * bpp;
-    Uint8 *p3 = (Uint8 *)screen->pixels + (y*2) * screen->pitch + (x*2+1) * bpp;
-    Uint8 *p4 = (Uint8 *)screen->pixels + (y*2+1) * screen->pitch + (x*2+1) * bpp;
-
-    /* Ustawiamy wartość piksela, w zależnoœci od formatu powierzchni*/
-    switch(bpp)
+    if ((x>=0) && (x<szerokosc) && (y>=0) && (y<wysokosc))
     {
+        /* Zamieniamy poszczególne składowe koloru na format koloru piksela */
+        Uint32 pixel = SDL_MapRGB(screen->format, R, G, B);
+
+        /* Pobieramy informację ile bajtów zajmuje jeden piksel */
+        int bpp = screen->format->BytesPerPixel;
+
+        /* Obliczamy adres piksela */
+        Uint8 *p1 = (Uint8 *)screen->pixels + (y*2) * screen->pitch + (x*2) * bpp;
+        Uint8 *p2 = (Uint8 *)screen->pixels + (y*2+1) * screen->pitch + (x*2) * bpp;
+        Uint8 *p3 = (Uint8 *)screen->pixels + (y*2) * screen->pitch + (x*2+1) * bpp;
+        Uint8 *p4 = (Uint8 *)screen->pixels + (y*2+1) * screen->pitch + (x*2+1) * bpp;
+
+        /* Ustawiamy wartość piksela, w zależnoœci od formatu powierzchni*/
+        switch(bpp)
+        {
         case 1: //8-bit
             *p1 = pixel;
             *p2 = pixel;
@@ -319,7 +505,8 @@ void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B)
             break;
 
         case 3: //24-bit
-            if(SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+            if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
+            {
                 p1[0] = (pixel >> 16) & 0xff;
                 p1[1] = (pixel >> 8) & 0xff;
                 p1[2] = pixel & 0xff;
@@ -332,7 +519,9 @@ void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B)
                 p4[0] = (pixel >> 16) & 0xff;
                 p4[1] = (pixel >> 8) & 0xff;
                 p4[2] = pixel & 0xff;
-            } else {
+            }
+            else
+            {
                 p1[0] = pixel & 0xff;
                 p1[1] = (pixel >> 8) & 0xff;
                 p1[2] = (pixel >> 16) & 0xff;
@@ -361,20 +550,20 @@ void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B)
 
 void setPixelSurface(int x, int y, Uint8 R, Uint8 G, Uint8 B)
 {
-  if ((x>=0) && (x<szerokosc*2) && (y>=0) && (y<wysokosc*2))
-  {
-    /* Zamieniamy poszczególne składowe koloru na format koloru piksela */
-    Uint32 pixel = SDL_MapRGB(screen->format, R, G, B);
-
-    /* Pobieramy informację ile bajtów zajmuje jeden piksel */
-    int bpp = screen->format->BytesPerPixel;
-
-    /* Obliczamy adres piksela */
-    Uint8 *p = (Uint8 *)screen->pixels + y * screen->pitch + x * bpp;
-
-    /* Ustawiamy wartość piksela, w zależności od formatu powierzchni*/
-    switch(bpp)
+    if ((x>=0) && (x<szerokosc*2) && (y>=0) && (y<wysokosc*2))
     {
+        /* Zamieniamy poszczególne składowe koloru na format koloru piksela */
+        Uint32 pixel = SDL_MapRGB(screen->format, R, G, B);
+
+        /* Pobieramy informację ile bajtów zajmuje jeden piksel */
+        int bpp = screen->format->BytesPerPixel;
+
+        /* Obliczamy adres piksela */
+        Uint8 *p = (Uint8 *)screen->pixels + y * screen->pitch + x * bpp;
+
+        /* Ustawiamy wartość piksela, w zależności od formatu powierzchni*/
+        switch(bpp)
+        {
         case 1: //8-bit
             *p = pixel;
             break;
@@ -384,11 +573,14 @@ void setPixelSurface(int x, int y, Uint8 R, Uint8 G, Uint8 B)
             break;
 
         case 3: //24-bit
-            if(SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+            if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
+            {
                 p[0] = (pixel >> 16) & 0xff;
                 p[1] = (pixel >> 8) & 0xff;
                 p[2] = pixel & 0xff;
-            } else {
+            }
+            else
+            {
                 p[0] = pixel & 0xff;
                 p[1] = (pixel >> 8) & 0xff;
                 p[2] = (pixel >> 16) & 0xff;
@@ -402,10 +594,12 @@ void setPixelSurface(int x, int y, Uint8 R, Uint8 G, Uint8 B)
     }
 }
 
-SDL_Color getPixel(int x, int y) {
+SDL_Color getPixel(int x, int y)
+{
     SDL_Color color ;
     Uint32 col = 0 ;
-    if ((x>=0) && (x<szerokosc) && (y>=0) && (y<wysokosc)) {
+    if ((x>=0) && (x<szerokosc) && (y>=0) && (y<wysokosc))
+    {
         //określamy pozycję
         char* pPosition=(char*)screen->pixels ;
 
@@ -424,10 +618,12 @@ SDL_Color getPixel(int x, int y) {
     return ( color ) ;
 }
 
-SDL_Color getPixelSurface(int x, int y, SDL_Surface *surface) {
+SDL_Color getPixelSurface(int x, int y, SDL_Surface *surface)
+{
     SDL_Color color ;
     Uint32 col = 0 ;
-    if ((x>=0) && (x<szerokosc) && (y>=0) && (y<wysokosc)) {
+    if ((x>=0) && (x<szerokosc) && (y>=0) && (y<wysokosc))
+    {
         //określamy pozycję
         char* pPosition=(char*)surface->pixels ;
 
@@ -457,13 +653,15 @@ void ladujBMP(char const* nazwa, int x, int y)
     else
     {
         SDL_Color kolor;
-        for (int yy=0; yy<bmp->h; yy++) {
-			for (int xx=0; xx<bmp->w; xx++) {
-				kolor = getPixelSurface(xx, yy, bmp);
-				setPixel(xx, yy, kolor.r, kolor.g, kolor.b);
-			}
+        for (int yy=0; yy<bmp->h; yy++)
+        {
+            for (int xx=0; xx<bmp->w; xx++)
+            {
+                kolor = getPixelSurface(xx, yy, bmp);
+                setPixel(xx, yy, kolor.r, kolor.g, kolor.b);
+            }
         }
-		SDL_FreeSurface(bmp);
+        SDL_FreeSurface(bmp);
         SDL_UpdateWindowSurface(window);
     }
 
@@ -478,15 +676,18 @@ void czyscEkran(Uint8 R, Uint8 G, Uint8 B)
 
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     //wypelnienie palet
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 16; i++)
+    {
         greyPalette[i].r = i * 17;
         greyPalette[i].g = i * 17;
         greyPalette[i].b = i * 17;
     }
 
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 16; i++)
+    {
         Uint8 bin = i;
         int r = bitset<1>(bin>>3).to_ulong() * 255;
         int g = bitset<2>(bin>>1).to_ulong() * 85;
@@ -499,16 +700,19 @@ int main(int argc, char* argv[]) {
 
     int choice = 0;
 
-    do{
+    do
+    {
         cout << "Wybierz, co chcesz zrobic: \n\t1 - dla konwersji bitmapy do autorskiego rozszerzenia \n\t2 - dla konwersji pliku z autorskim rozszerzeniem do bitmapy \n\t0 - dla wyjscia z programu" << endl << "Twoj wybor: ";
         cin >> choice;
-        while(choice < 0 || choice > 2){
+        while(choice < 0 || choice > 2)
+        {
             cout << "Niepoprawny wybor. Wybierz jeszcze raz." << endl;
             cout << "Wybierz, co chcesz zrobic: \n\t1 - dla konwersji bitmapy do autorskiego rozszerzenia \n\t2 - dla konwersji pliku z autorskim rozszerzeniem do bitmapy \n\t0 - dla wyjscia z programu" << endl << "Twoj wybor: ";
             cin >> choice;
         }
 
-        switch(choice){
+        switch(choice)
+        {
         case 0:
             break;
         case 1:
@@ -520,7 +724,8 @@ int main(int argc, char* argv[]) {
         default:
             break;
         }
-    }while(choice != 0);
+    }
+    while(choice != 0);
 
     return 0;
 }
