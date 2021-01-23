@@ -48,8 +48,9 @@ SDL_Color greyPalette[16];
 SDL_Color preDefPalette[16];
 
 char findWidestRangeColor();
-bool sortColorsByWidestChannel(char channel, const colorPalette &lhs, const colorPalette &rhs);
 void generateCustomPalette();
+void customPaletteFunction();
+void replacePixelsWithCustomPaletteColors();
 
 SDL_Color pixelToPreDefPalette(SDL_Color color)
 {
@@ -253,7 +254,7 @@ void defineProperties()
     wysokosc = height;  //przypisanie globalnej wysokosci potrzebnej np do metody setpixel;
     cout << "Wysokosc bitmapy: " << height << endl;
 
-    if(height > 1024 && width > 1024)
+    if(height > 1024 || width > 1024)
     {
         //nazwa za duzej bitmapy do testow: oversize.bmp
         cout << "Wybierz obraz o mniejszej rozdzielczosci (max: 1024/1024px)!" << endl << endl;
@@ -261,6 +262,8 @@ void defineProperties()
     else
     {
         cout << "Wybierz rodzaj palety uzywanej do zapisu bitmapy: \n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej";
+        // generujemy customowa palete, aby byla dostepna do podgladu //
+        customPaletteFunction();
         palette = preInspection(width, height, name_char);
         cout << "Twoj wybor: "<<palette<<endl;
         while(palette < 0 || palette > 2)
@@ -315,8 +318,6 @@ void medianCut(){
     int colorRange = 0, colorL = 0, colorH = 0;
     char channel = findWidestRangeColor();
 
-    //cout << "Najszerszy kanal: " << channel << endl;
-
     switch(channel){
         case 'r':
             sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.r < rhs.color.r;});
@@ -340,17 +341,13 @@ void medianCut(){
             break;
     }
 
-    /*cout << "Posortowane kolory wg najszerszego kanalu: " << endl;
-    for(int a=0; a<customPalette.size(); a++){
-        cout << a << ": [" << (int)customPalette[a].color.r << ", " << (int)customPalette[a].color.g << ", " << (int)customPalette[a].color.b << "]" << endl;
-    }*/
-
     vector<vector<colorPalette>> tmpListOfPalettes;
     listOfPalettes.push_back(customPalette);
     int divisions = 1;
     vector<colorPalette> tmpPalette1;
     vector<colorPalette> tmpPalette2;
     float median = 0;
+    colorPalette tmpColor;
 
     while(listOfPalettes.size() < 16){
         for(int i=0; i<divisions; i++){
@@ -371,31 +368,31 @@ void medianCut(){
                     median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
                     break;
             }
-
-            for(int j=0; j<listOfPalettes[i].size(); j++){
+            tmpColor = listOfPalettes[i][0];
+            for(const auto &v : listOfPalettes[i]){
                 switch(channel){
                     case 'r':
-                        if(listOfPalettes[i][j].color.r <= median + listOfPalettes[i][0].color.r){
-                            tmpPalette1.push_back(listOfPalettes[i][j]);
+                        if(v.color.r <= median + tmpColor.color.r){
+                            tmpPalette1.push_back(v);
                         }
                         else{
-                            tmpPalette2.push_back(listOfPalettes[i][j]);
+                            tmpPalette2.push_back(v);
                         }
                         break;
                     case 'g':
-                        if(listOfPalettes[i][j].color.g <= median + listOfPalettes[i][0].color.r){
-                            tmpPalette1.push_back(listOfPalettes[i][j]);
+                        if(v.color.g <= median + tmpColor.color.r){
+                            tmpPalette1.push_back(v);
                         }
                         else{
-                            tmpPalette2.push_back(listOfPalettes[i][j]);
+                            tmpPalette2.push_back(v);
                         }
                         break;
                     case 'b':
-                        if(listOfPalettes[i][j].color.b <= median + listOfPalettes[i][0].color.r){
-                            tmpPalette1.push_back(listOfPalettes[i][j]);
+                        if(v.color.b <= median + tmpColor.color.r){
+                            tmpPalette1.push_back(v);
                         }
                         else{
-                            tmpPalette2.push_back(listOfPalettes[i][j]);
+                            tmpPalette2.push_back(v);
                         }
                         break;
                     default:
@@ -411,9 +408,34 @@ void medianCut(){
         }
         tmpListOfPalettes.clear();
         divisions *= 2;
+        cout << "Rozmiar palety customowej: " << listOfPalettes.size() << endl;
     }
 
     generateCustomPalette();
+}
+
+void replacePixelsWithCustomPaletteColors(){
+    SDL_Color color;
+    bool findColor = false;
+    for(int y=0; y<wysokosc; y++){
+        for(int x=0; x<szerokosc; x++){
+            color = getPixel(x, y);
+            while(!findColor){
+                for(int j=0; j<listOfPalettes.size(); j++){
+                    for(int i=0; i<listOfPalettes[j].size(); i++){
+                        if(listOfPalettes[j][i].color.r == color.r &&  listOfPalettes[j][i].color.g == color.g && listOfPalettes[j][i].color.b == color.b){
+                            setPixel(x,y,finalCustomPalette[j].r, finalCustomPalette[j].g, finalCustomPalette[j].b);
+                            cout << "Ustawiam" << endl;
+                            // tu docelowo pewnie zapiszemy dane do tablicy, by mozna bylo je potem skompresowac i wpisac do pliku //
+                            findColor = true;
+                            break;
+                        }
+                    }
+                    if(findColor) break;
+                }
+            }
+        }
+    }
 }
 
 void generateCustomPalette(){
@@ -443,13 +465,64 @@ void generateCustomPalette(){
 
     cout << "Customowa paleta: " << endl;
     for(int a=0; a<16; a++){
-        cout << a << ": [" << finalCustomPalette[a].r << ", " << finalCustomPalette[a].g << ", " << finalCustomPalette[a].b << "]" << endl;
+        cout << a << ": [" << (int)finalCustomPalette[a].r << ", " << (int)finalCustomPalette[a].g << ", " << (int)finalCustomPalette[a].b << "]" << endl;
+    }
+}
+
+void customPaletteFunction(){
+    SDL_Color color;
+    customPalette.clear();
+    for(int y = 0; y < wysokosc; y++)
+    {
+        for(int x = 0; x < szerokosc; x++)
+        {
+            color = getPixel(x, y);
+
+            bool existFlag = false;
+            for(colorPalette &element : customPalette)
+            {
+                if( (int)color.r == element.color.r &&
+                    (int)color.g == element.color.g &&
+                    (int)color.b == element.color.b )
+                {
+                    existFlag = true;
+                    element.counter++;
+                }
+            }
+
+            if(!existFlag)
+            {
+                colorPalette newColor;
+                newColor.color = color;
+                newColor.counter++;
+                customPalette.push_back(newColor);
+            }
+        }
+    }
+    colorPalette blankColor;
+    blankColor.color.a = 1;
+    blankColor.color.r = 0;
+    blankColor.color.g = 0;
+    blankColor.color.b = 0;
+    blankColor.counter = -1;
+    if(customPalette.size() <= 16){
+        if(customPalette.size() < 16){
+            for(int i=0; i<16-customPalette.size(); i++){
+                customPalette.push_back(blankColor);
+            }
+        }
+
+        for(int c=0; c<16; c++){
+            finalCustomPalette[c] = customPalette[c].color;
+        }
+    }
+    else{
+        medianCut();
     }
 }
 
 void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp)
 {
-    SDL_Color color;
     char identyfikator[] = "BCDJ";
 
     int ileKolorow = 0;
@@ -493,37 +566,6 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
 
     if(p == 2)   // gdy wybrana paleta dedykowana, to ja tworzymy i zapisujemy do naglowka
     {
-        customPalette.clear();
-        for(int y = 0; y < h; y++)
-        {
-            for(int x = 0; x < w; x++)
-            {
-                color = getPixelSurface(x, y, bmp);
-
-                bool existFlag = false;
-                for(colorPalette &element : customPalette)
-                {
-                    if( (int)color.r == element.color.r &&
-                        (int)color.g == element.color.g &&
-                        (int)color.b == element.color.b )
-                    {
-                        existFlag = true;
-                        element.counter++;
-                    }
-                }
-
-                if(!existFlag)
-                {
-                    colorPalette newColor;
-                    newColor.color = color;
-                    newColor.counter++;
-                    customPalette.push_back(newColor);
-                }
-            }
-        }
-
-        medianCut();
-
         for(int i = 0; i < 16; i++)
         {
             wyjscie.write((char*)&finalCustomPalette[i].r, sizeof(Uint8));
@@ -642,8 +684,10 @@ int preInspection(int w, int h, char* name)
             }
             if (event.key.keysym.sym == SDLK_2)
             {
-                out =2;
                 ladujBMP(name, 0, 0);
+                replacePixelsWithCustomPaletteColors();
+                out = 2;
+                SDL_UpdateWindowSurface(window);
             }
             else
                 break;
@@ -673,6 +717,7 @@ int preInspectionDithering(int w, int h, char* name, int palette)
     cout << endl << "(za pomoca klawiszy '0','1' podgląd z ditheringiem lub bez,  Esc - aby przejsc dalej)"<< endl;
     int out;
     bool done = false;
+
     SDL_Event event;
     // główna pętla programu
     while (SDL_WaitEvent(&event))
@@ -695,7 +740,6 @@ int preInspectionDithering(int w, int h, char* name, int palette)
                 ladujBMP(name, 0, 0);
                 switch(palette)
                 {
-
                 case 0:
                     preDefPaletteFunction();
                     break;
@@ -703,7 +747,7 @@ int preInspectionDithering(int w, int h, char* name, int palette)
                     greyPaletteFunction();
                     break;
                 case 2:
-                    cout<<"2"<<endl;
+                    replacePixelsWithCustomPaletteColors();
                     break;
                 }
                 SDL_UpdateWindowSurface(window);
@@ -714,21 +758,19 @@ int preInspectionDithering(int w, int h, char* name, int palette)
                 ladujBMP(name, 0, 0);
 
                 Dithering(palette, name);
-                cout<<"dithering"<<endl;
+                //cout<<"dithering"<<endl;
                 SDL_UpdateWindowSurface(window);
 
             }
             else{
                 break;
             }
-
-
         }
         }
         if (done) break;
     }
-    return out;
 
+    return out;
 }
 
 
@@ -958,6 +1000,7 @@ int main(int argc, char* argv[])
         preDefPalette[i].g = g;
         preDefPalette[i].b = b;
     }
+
     //koniec wypelniana palet
 
     int choice = 0;
