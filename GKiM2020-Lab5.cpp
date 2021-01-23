@@ -39,10 +39,17 @@ bool sortByCounter(const colorPalette &lhs, const colorPalette &rhs)
 {
     return lhs.counter > rhs.counter;
 }
+
 vector<colorPalette> customPalette;
+SDL_Color finalCustomPalette[16];
+vector<vector<colorPalette>> listOfPalettes;
 
 SDL_Color greyPalette[16];
 SDL_Color preDefPalette[16];
+
+char findWidestRangeColor();
+bool sortColorsByWidestChannel(char channel, const colorPalette &lhs, const colorPalette &rhs);
+void generateCustomPalette();
 
 SDL_Color pixelToPreDefPalette(SDL_Color color)
 {
@@ -272,6 +279,174 @@ void defineProperties()
     }
 };
 
+
+int widestColor = 0;
+int redL = 255, greenL = 255, blueL = 255, redH = 0, greenH = 0, blueH = 0;
+int redRange = 0, greenRange = 0, blueRange = 0;
+
+char findWidestRangeColor(){
+
+    for(colorPalette &element : customPalette){
+        if(element.color.r > redH) redH = element.color.r;
+        if(element.color.r < redL) redL = element.color.r;
+        if(element.color.g > greenH) greenH = element.color.g;
+        if(element.color.g < greenL) greenL = element.color.g;
+        if(element.color.b > blueH) blueH = element.color.b;
+        if(element.color.b < blueL) blueL = element.color.b;
+    }
+
+    redRange = redH - redL;
+    greenRange = greenH - greenL;
+    blueRange = blueH - blueL;
+
+    widestColor = max(max(redRange, greenRange), blueRange);
+    if(widestColor == redRange){
+        return 'r';
+    }
+    else if(widestColor == greenRange){
+        return 'g';
+    }
+    else{
+        return 'b';
+    }
+}
+
+void medianCut(){
+    int colorRange = 0, colorL = 0, colorH = 0;
+    char channel = findWidestRangeColor();
+
+    //cout << "Najszerszy kanal: " << channel << endl;
+
+    switch(channel){
+        case 'r':
+            sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.r < rhs.color.r;});
+            colorRange = redRange;
+            colorL = redL;
+            colorH = redH;
+            break;
+        case 'g':
+            sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.g < rhs.color.g;});
+            colorRange = greenRange;
+            colorL = greenL;
+            colorH = greenH;
+            break;
+        case 'b':
+            sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.b < rhs.color.b;});
+            colorRange = blueRange;
+            colorL = blueL;
+            colorH = blueH;
+            break;
+        default:
+            break;
+    }
+
+    /*cout << "Posortowane kolory wg najszerszego kanalu: " << endl;
+    for(int a=0; a<customPalette.size(); a++){
+        cout << a << ": [" << (int)customPalette[a].color.r << ", " << (int)customPalette[a].color.g << ", " << (int)customPalette[a].color.b << "]" << endl;
+    }*/
+
+    vector<vector<colorPalette>> tmpListOfPalettes;
+    listOfPalettes.push_back(customPalette);
+    int divisions = 1;
+    vector<colorPalette> tmpPalette1;
+    vector<colorPalette> tmpPalette2;
+    float median = 0;
+
+    while(listOfPalettes.size() < 16){
+        for(int i=0; i<divisions; i++){
+            tmpPalette1.clear();
+            tmpPalette2.clear();
+            switch(channel){
+                case 'r':
+                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.r - listOfPalettes[i][0].color.r)/2.0;
+                     break;
+                case 'g':
+                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.g - listOfPalettes[i][0].color.g)/2.0;
+                    break;
+                case 'b':
+                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
+                    break;
+                default:
+                    cout << "Error" << endl;
+                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
+                    break;
+            }
+
+            for(int j=0; j<listOfPalettes[i].size(); j++){
+                switch(channel){
+                    case 'r':
+                        if(listOfPalettes[i][j].color.r <= median + listOfPalettes[i][0].color.r){
+                            tmpPalette1.push_back(listOfPalettes[i][j]);
+                        }
+                        else{
+                            tmpPalette2.push_back(listOfPalettes[i][j]);
+                        }
+                        break;
+                    case 'g':
+                        if(listOfPalettes[i][j].color.g <= median + listOfPalettes[i][0].color.r){
+                            tmpPalette1.push_back(listOfPalettes[i][j]);
+                        }
+                        else{
+                            tmpPalette2.push_back(listOfPalettes[i][j]);
+                        }
+                        break;
+                    case 'b':
+                        if(listOfPalettes[i][j].color.b <= median + listOfPalettes[i][0].color.r){
+                            tmpPalette1.push_back(listOfPalettes[i][j]);
+                        }
+                        else{
+                            tmpPalette2.push_back(listOfPalettes[i][j]);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            tmpListOfPalettes.push_back(tmpPalette1);
+            tmpListOfPalettes.push_back(tmpPalette2);
+        }
+        listOfPalettes.clear();
+        for(int x=0; x<divisions*2; x++){
+            listOfPalettes.push_back(tmpListOfPalettes[x]);
+        }
+        tmpListOfPalettes.clear();
+        divisions *= 2;
+    }
+
+    generateCustomPalette();
+}
+
+void generateCustomPalette(){
+    int avgR = 0, avgG = 0, avgB = 0, weightSum = 0;
+    SDL_Color finalColor;
+
+    for(int i=0; i<listOfPalettes.size(); i++){
+        for(int j=0; j<listOfPalettes[i].size(); j++){
+            avgR += listOfPalettes[i][j].color.r * listOfPalettes[i][j].counter;
+            avgG += listOfPalettes[i][j].color.g * listOfPalettes[i][j].counter;
+            avgB += listOfPalettes[i][j].color.b * listOfPalettes[i][j].counter;
+            weightSum += listOfPalettes[i][j].counter;
+        }
+        avgR /= weightSum;
+        avgG /= weightSum;
+        avgB /= weightSum;
+        finalColor.r = avgR;
+        finalColor.g = avgG;
+        finalColor.b = avgB;
+        finalCustomPalette[i] = finalColor;
+        // !kolor wygenerowany z n-tego setu kolorow w listOfPalettes jest na n-tej pozycji w finalCustomPalette!
+        avgR = 0;
+        avgG = 0;
+        avgB = 0;
+        weightSum = 0;
+    }
+
+    cout << "Customowa paleta: " << endl;
+    for(int a=0; a<16; a++){
+        cout << a << ": [" << finalCustomPalette[a].r << ", " << finalCustomPalette[a].g << ", " << finalCustomPalette[a].b << "]" << endl;
+    }
+}
+
 void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp)
 {
     SDL_Color color;
@@ -281,33 +456,33 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
     string newName = name.erase(name.size() - 4) + ".bcdj";
 
     Uint16 head1 = (Uint16)w;
-    cout << "Width: " << bitset<16>(head1) << endl;
+    //cout << "Width: " << bitset<16>(head1) << endl;
     head1 = head1<<6;
-    cout << "Width po przesunieciu z samym width: " << bitset<16>(head1) << endl;
+    //cout << "Width po przesunieciu z samym width: " << bitset<16>(head1) << endl;
     Uint16 temp1 = (Uint16)h;
-    cout << "Height: " << bitset<16>(temp1) << endl;
+    //cout << "Height: " << bitset<16>(temp1) << endl;
     temp1 = temp1>>4;
-    cout << "6 bitow z height: " << bitset<16>(temp1) << endl;
+    //cout << "6 bitow z height: " << bitset<16>(temp1) << endl;
     head1 = head1 | temp1;
-    cout << "Width i 6 bitow height: " << bitset<16>(head1) << endl;
+    //cout << "Width i 6 bitow height: " << bitset<16>(head1) << endl;
     temp1 = (Uint16)h;
     temp1 = temp1<<4;
-    cout << "height przesuniety o 4 bity, z ktorego bierzemy 4 bity: " << bitset<16>(temp1) << endl;
+    //cout << "height przesuniety o 4 bity, z ktorego bierzemy 4 bity: " << bitset<16>(temp1) << endl;
     Uint8 head2 = temp1;
-    cout << "4 bity height w uint8 head2: " << bitset<8>(temp1) << endl;
+    //cout << "4 bity height w uint8 head2: " << bitset<8>(temp1) << endl;
     Uint8 temp2 = (Uint8)p;
     temp2 = temp2<<2;
     head2 = head2 | temp2;
-    cout << "4 bity height i 2 bity palety: " << bitset<8>(head2) << endl;
+    //cout << "4 bity height i 2 bity palety: " << bitset<8>(head2) << endl;
     temp2 = (Uint8)d;
     temp2 = temp2<<1;
     head2 = head2 | temp2;
-    cout << "4 bity height i 2 bity palety i bit dithering: " << bitset<8>(head2) << endl;
+    //cout << "4 bity height i 2 bity palety i bit dithering: " << bitset<8>(head2) << endl;
     temp2 = (Uint8)c;
     head2 = head2 | temp2;
-    cout << "4 bity height i 2 bity palety, bit dithering i 0 z kompresji: " << bitset<8>(head2) << endl;
+    //cout << "4 bity height i 2 bity palety, bit dithering i 0 z kompresji: " << bitset<8>(head2) << endl;
 
-    cout << "Pelny naglowek (tylko bez palety): " << bitset<16>(head1) << bitset<8>(head2) << endl;
+    //cout << "Pelny naglowek (tylko bez palety): " << bitset<16>(head1) << bitset<8>(head2) << endl;
 
     cout<<"Zapisujemy plik " << newName <<" uzywajac metody write()" << endl << endl;
     ofstream wyjscie(newName, ios::binary);
@@ -328,9 +503,9 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
                 bool existFlag = false;
                 for(colorPalette &element : customPalette)
                 {
-                    if((int)color.r == element.color.r &&
-                            (int)color.g == element.color.g &&
-                            (int)color.b == element.color.b )
+                    if( (int)color.r == element.color.r &&
+                        (int)color.g == element.color.g &&
+                        (int)color.b == element.color.b )
                     {
                         existFlag = true;
                         element.counter++;
@@ -346,26 +521,14 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
                 }
             }
         }
-        sort(customPalette.begin(), customPalette.end(), sortByCounter);
 
-        cout << "numberOfCustomColors: " << customPalette.size() << endl;
+        medianCut();
+
         for(int i = 0; i < 16; i++)
         {
-            if(i >= customPalette.size())
-            {
-                cout << "Koniec palety - 0,0,0" << endl;
-                Uint8 blank;
-                wyjscie.write((char*)&blank, sizeof(Uint8));
-                wyjscie.write((char*)&blank, sizeof(Uint8));
-                wyjscie.write((char*)&blank, sizeof(Uint8));
-            }
-            else
-            {
-                cout << (int)customPalette[i].color.r << "," << (int)customPalette[i].color.g << "," << (int)customPalette[i].color.b << "  " << "count: "<< customPalette[i].counter << endl;
-                wyjscie.write((char*)&customPalette[i].color.r, sizeof(Uint8));
-                wyjscie.write((char*)&customPalette[i].color.g, sizeof(Uint8));
-                wyjscie.write((char*)&customPalette[i].color.b, sizeof(Uint8));
-            }
+            wyjscie.write((char*)&finalCustomPalette[i].r, sizeof(Uint8));
+            wyjscie.write((char*)&finalCustomPalette[i].g, sizeof(Uint8));
+            wyjscie.write((char*)&finalCustomPalette[i].b, sizeof(Uint8));
         }
     }
     SDL_DestroyWindow(window);
