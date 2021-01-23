@@ -44,66 +44,176 @@ vector<colorPalette> customPalette;
 SDL_Color greyPalette[16];
 SDL_Color preDefPalette[16];
 
+SDL_Color pixelToPreDefPalette(SDL_Color color)
+{
+    int R,G,B;
+    R = (int)color.r;
+    G = (int)color.g;
+    B = (int)color.b;
+
+    R = round(R * 1.0 /255);
+    G = round(G * 3.0 / 255);
+    B = round(B * 1.0 / 255);
+
+    R = R * 255;
+    G = (G * 255) / 3.0;
+    B = B *255;
+
+    color.r = R;
+    color.g = G;
+    color.b = B;
+
+    return color;
+}
 
 void preDefPaletteFunction()
 {
-
     int R,G,B;
-    SDL_Color kolor;
+    SDL_Color color;
     for(int y=0; y<wysokosc; y++)
     {
         for(int x=0; x<szerokosc; x++)
         {
+            color = getPixel(x,y);
+            color = pixelToPreDefPalette(color);
 
-            kolor = getPixel(x,y);
-            R = (int)kolor.r;
-            G = (int)kolor.g;
-            B = (int)kolor.b;
+            R = (int)color.r;
+            G = (int)color.g;
+            B = (int)color.b;
 
-            R = round(R * 1.0 /255);
-            G = round(G * 3.0 / 255);
-            B = round(B * 1.0 / 255);
-
-            R = R * 255;
-            G = (G * 255) / 3.0;
-            B = B *255;
             setPixel(x,y,R,G,B);
-
         }
     }
+}
+
+int pixelToGreayPalette(SDL_Color color)
+{
+    int R,G,B, BW;
+
+    R = (int)color.r;
+    G = (int)color.g;
+    B = (int)color.b;
+
+    BW = round(0.299 * R + 0.587 * G + 0.114 *B);
+    BW = round(BW * 15.0 / 255);
+    BW = BW * 255 / 15.0;
+
+    return BW;
 }
 
 void greyPaletteFunction()
 {
-
-    SDL_Color kolor;
-    int R,G,B, BW;
+    SDL_Color color;
+    int BW;
     for(int y=0; y<wysokosc; y++)
     {
         for(int x=0; x<szerokosc; x++)
         {
-
-            kolor = getPixel(x,y);
-            R = (int)kolor.r;
-            G = (int)kolor.g;
-            B = (int)kolor.b;
-
-            BW = round(0.299 * R + 0.587 * G + 0.114 *B);
-            BW = round(BW * 15.0 / 255);
-            BW = BW * 255 / 15.0;
+            color = getPixel(x,y);
+            BW = pixelToGreayPalette(color);
             setPixel(x,y,BW,BW,BW);
-
         }
     }
 
 }
 
-void Dithering()
-{
-
-
+void addErrToRGB(int c, int err, SDL_Color* bmp_map) {
+    if(c == 0) {
+        if( bmp_map->r + err > 255 ) bmp_map->r = 255;
+        else if( bmp_map->r + err < 0 ) bmp_map->r = 0;
+        else bmp_map->r += err;
+    }
+    else if(c == 1) {
+        if( bmp_map->g + err > 255 ) bmp_map->g = 255;
+        else if( bmp_map->g + err < 0 ) bmp_map->g = 0;
+        else bmp_map->g += err;
+    }
+    else if(c == 2) {
+        if( bmp_map->b + err > 255 ) bmp_map->b = 255;
+        else if( bmp_map->b + err < 0 ) bmp_map->b = 0;
+        else bmp_map->b += err;
+    }
 }
 
+void Dithering(int palette, char* name)
+{
+    int err_R, err_G, err_B;
+    SDL_Color color, paletteColor;
+
+    SDL_Surface* bmp = SDL_LoadBMP(name);
+    SDL_Color bmp_map[bmp->w][bmp->h];
+
+    for(int y=0; y<bmp->h; y++) {
+        for(int x=0; x<bmp->w; x++) {
+            if(palette == 1) {
+                int R,G,B, BW;
+                color = getPixelSurface(x, y, bmp);
+
+                R = (int)color.r;
+                G = (int)color.g;
+                B = (int)color.b;
+
+                BW = round(0.299 * R + 0.587 * G + 0.114 *B);
+
+                bmp_map[x][y].r = BW;
+                bmp_map[x][y].g = BW;
+                bmp_map[x][y].b = BW;
+            }
+            else bmp_map[x][y] = getPixelSurface(x, y, bmp);
+        }
+    }
+
+    for(int y=0; y<wysokosc; y++)
+    {
+        for(int x=0; x<szerokosc; x++)
+        {
+            color = bmp_map[x][y];
+
+            if(palette == 1) {
+                int BW = color.r;
+                BW = round(BW * 15.0 / 255);
+                BW = BW * 255 / 15.0;
+                paletteColor.r = BW;
+                paletteColor.g = BW;
+                paletteColor.b = BW;
+            }
+            else if(palette == 0) paletteColor = pixelToPreDefPalette(color);
+            else if(palette == 2) paletteColor = pixelToPreDefPalette(color);
+
+
+            setPixel(x, y, (int)paletteColor.r, (int)paletteColor.g, (int)paletteColor.b);
+
+            err_R = (int)color.r - (int)paletteColor.r;
+            err_G = (int)color.g - (int)paletteColor.g;
+            err_B = (int)color.b - (int)paletteColor.b;
+
+            if(x < (szerokosc - 1)) {
+                addErrToRGB(0, ( err_R * 7/16 ), &bmp_map[x+1][y]);
+                addErrToRGB(1, ( err_G * 7/16 ), &bmp_map[x+1][y]);
+                addErrToRGB(2, ( err_B * 7/16 ), &bmp_map[x+1][y]);
+            }
+
+            if(x > 0 && y < (wysokosc - 1) ) {
+                addErrToRGB(0, ( err_R * 3/16 ), &bmp_map[x-1][y+1]);
+                addErrToRGB(1, ( err_G * 3/16 ), &bmp_map[x-1][y+1]);
+                addErrToRGB(2, ( err_B * 3/16 ), &bmp_map[x-1][y+1]);
+            }
+
+            if(y < (wysokosc - 1) ) {
+                addErrToRGB(0, ( err_R * 3/16 ), &bmp_map[x][y+1]);
+                addErrToRGB(1, ( err_G * 3/16 ), &bmp_map[x][y+1]);
+                addErrToRGB(2, ( err_B * 3/16 ), &bmp_map[x][y+1]);
+            }
+
+            if(x < (szerokosc - 1) && y < (wysokosc - 1) ) {
+                addErrToRGB(0, ( err_R * 3/16 ), &bmp_map[x+1][y+1]);
+                addErrToRGB(1, ( err_G * 3/16 ), &bmp_map[x+1][y+1]);
+                addErrToRGB(2, ( err_B * 3/16 ), &bmp_map[x+1][y+1]);
+            }
+        }
+    }
+    SDL_UpdateWindowSurface(window);
+}
 
 
 void defineProperties()
@@ -160,7 +270,7 @@ void defineProperties()
 
         encodeHeader(name, width, height, palette, dithering, compression, bmp);
     }
-}
+};
 
 void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp)
 {
@@ -439,19 +549,8 @@ int preInspectionDithering(int w, int h, char* name, int palette)
             {
                 out = 1;
                 ladujBMP(name, 0, 0);
-                switch(palette)
-                {
-                case 0:
-                    preDefPaletteFunction();
-                    break;
-                case 1:
-                    greyPaletteFunction();
-                    break;
-                case 2:
-                    cout<<"2"<<endl;
-                    break;
-                }
-                Dithering();
+
+                Dithering(palette, name);
                 cout<<"dithering"<<endl;
                 SDL_UpdateWindowSurface(window);
 
