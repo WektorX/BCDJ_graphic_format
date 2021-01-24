@@ -51,6 +51,7 @@ char findWidestRangeColor();
 void generateCustomPalette();
 void customPaletteFunction();
 void replacePixelsWithCustomPaletteColors();
+SDL_Color convertColorToCustomPalette(SDL_Color color);
 
 SDL_Color pixelToPreDefPalette(SDL_Color color)
 {
@@ -286,6 +287,7 @@ void defineProperties()
 int widestColor = 0;
 int redL = 255, greenL = 255, blueL = 255, redH = 0, greenH = 0, blueH = 0;
 int redRange = 0, greenRange = 0, blueRange = 0;
+char channel;
 
 char findWidestRangeColor(){
 
@@ -316,7 +318,7 @@ char findWidestRangeColor(){
 
 void medianCut(){
     int colorRange = 0, colorL = 0, colorH = 0;
-    char channel = findWidestRangeColor();
+    channel = findWidestRangeColor();
 
     switch(channel){
         case 'r':
@@ -351,7 +353,6 @@ void medianCut(){
 
     while(listOfPalettes.size() < 16){
         for(int i=0; i<divisions; i++){
-            //cout << "Rozmiar itego elementu palety customowej: " << listOfPalettes[i].size() << endl;
             tmpPalette1.clear();
             tmpPalette2.clear();
             switch(channel){
@@ -369,37 +370,62 @@ void medianCut(){
                     median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
                     break;
             }
-            tmpColor = listOfPalettes[i][0];
-            for(const auto &v : listOfPalettes[i]){
-                switch(channel){
-                    case 'r':
-                        if(v.color.r <= median + tmpColor.color.r){
-                            tmpPalette1.push_back(v);
-                        }
-                        else{
-                            tmpPalette2.push_back(v);
-                        }
-                        break;
-                    case 'g':
-                        if(v.color.g <= median + tmpColor.color.g){
-                            tmpPalette1.push_back(v);
-                        }
-                        else{
-                            tmpPalette2.push_back(v);
-                        }
-                        break;
-                    case 'b':
-                        if(v.color.b <= median + tmpColor.color.b){
-                            tmpPalette1.push_back(v);
-                        }
-                        else{
-                            tmpPalette2.push_back(v);
-                        }
-                        break;
-                    default:
-                        break;
+            //if(divisions==8){
+                cout << "Channel: " << channel << ", median: " << median << "Zakres: " << (int)listOfPalettes[i][0].color.b << " - " << (int)listOfPalettes[i][listOfPalettes[i].size()-1].color.b << endl;
+            //}
+            if(median == 0){
+                for(int vCtr = 0; vCtr < listOfPalettes[i].size(); vCtr++){
+                    if(listOfPalettes[i][vCtr].color.b > 127 && listOfPalettes[i][vCtr].color.b < 155){
+                        cout << "vCtr: [" << (int)listOfPalettes[i][vCtr].color.r << ", " << (int)listOfPalettes[i][vCtr].color.g << ", " << (int)listOfPalettes[i][vCtr].color.b << "] " << endl;
+                    }
+                    if(vCtr % 2 == 0){
+                        tmpPalette1.push_back(listOfPalettes[i][vCtr]);
+                    }
+                    else{
+                        tmpPalette2.push_back(listOfPalettes[i][vCtr]);
+                    }
                 }
             }
+            else{
+                tmpColor = listOfPalettes[i][0];
+                for(const auto &v : listOfPalettes[i]){
+                    if(v.color.b > 127 && v.color.b < 155){
+                        cout << "v: [" << (int)v.color.r << ", " << (int)v.color.g << ", " << (int)v.color.b << "] " << endl;
+                    }
+                    switch(channel){
+                        case 'r':
+                            if(v.color.r <= median + tmpColor.color.r){
+                                tmpPalette1.push_back(v);
+                            }
+                            else{
+                                tmpPalette2.push_back(v);
+                            }
+                            break;
+                        case 'g':
+                            if(v.color.g <= median + tmpColor.color.g){
+                                tmpPalette1.push_back(v);
+                            }
+                            else{
+                                tmpPalette2.push_back(v);
+                            }
+                            break;
+                        case 'b':
+                            if(v.color.b <= median + tmpColor.color.b){
+                                tmpPalette1.push_back(v);
+                            }
+                            else{
+                                tmpPalette2.push_back(v);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                if(tmpPalette1.size() < (16/divisions)){
+
+                }
+            }
+
             tmpListOfPalettes.push_back(tmpPalette1);
             tmpListOfPalettes.push_back(tmpPalette2);
         }
@@ -409,41 +435,25 @@ void medianCut(){
         }
         tmpListOfPalettes.clear();
         divisions *= 2;
-        //cout << "Rozmiar palety customowej na koncu petli: " << listOfPalettes.size() << ", divisions: " << divisions << endl;
     }
-
     generateCustomPalette();
 }
 
 void replacePixelsWithCustomPaletteColors(){
     if(listOfPalettes.size() == 16){
         SDL_Color color;
-        bool findColor = false;
-        int j = 0;
         for(int y=0; y<wysokosc; y++){
             for(int x=0; x<szerokosc; x++){
-                findColor = false;
                 color = getPixel(x, y);
-                while(!findColor){
-                    for(int j=0; j<16; j++){
-                        for(int i=0; i<listOfPalettes[j].size(); i++){
-                            if(listOfPalettes[j][i].color.r == color.r && listOfPalettes[j][i].color.g == color.g && listOfPalettes[j][i].color.b == color.b){
-                                setPixel(x,y,finalCustomPalette[j].r, finalCustomPalette[j].g, finalCustomPalette[j].b);
-                                // tu docelowo pewnie zapiszemy dane do tablicy, by mozna bylo je potem skompresowac i wpisac do pliku //
-                                findColor = true;
-                                break;
-                            }
-                        }
-                        if(findColor) break;
-                    }
-                }
+                color = convertColorToCustomPalette(color);
+                setPixel(x, y, color.r, color.g, color.b);
             }
         }
     }
 }
 
 void generateCustomPalette(){
-    int avgR = 0, avgG = 0, avgB = 0;
+    double avgR = 0, avgG = 0, avgB = 0;
     double weightSum = 0;
     SDL_Color finalColor;
     //cout << "Rozmiar listy palet: " << listOfPalettes.size() << endl;
@@ -458,9 +468,9 @@ void generateCustomPalette(){
         avgR /= weightSum;
         avgG /= weightSum;
         avgB /= weightSum;
-        finalColor.r = avgR;
-        finalColor.g = avgG;
-        finalColor.b = avgB;
+        finalColor.r = (Uint8)avgR;
+        finalColor.g = (Uint8)avgG;
+        finalColor.b = (Uint8)avgB;
         finalCustomPalette[i] = finalColor;
         // !kolor wygenerowany z n-tego setu kolorow w listOfPalettes jest na n-tej pozycji w finalCustomPalette!
         avgR = 0;
@@ -524,11 +534,53 @@ void customPaletteFunction(){
         }
     }
     else{
-        /*cout<<"Wszystkie kolory z obrazka:" << endl;
-        for(int i=0; i<customPalette.size(); i++){
-            cout << i << ": [" << (int)customPalette[i].color.r << ", " << (int)customPalette[i].color.g << ", " << (int)customPalette[i].color.b << "] (" << customPalette[i].counter << ")" << endl;
-        }*/
         medianCut();
+    }
+}
+
+SDL_Color convertColorToCustomPalette(SDL_Color color){
+    int vCtr = 0, index = -1;
+    if(listOfPalettes.size() != 16){
+        for(int i=0; i<16; i++){
+            if(color.r == finalCustomPalette[i].r && color.g == finalCustomPalette[i].g && color.b == finalCustomPalette[i].b) return finalCustomPalette[i];
+        }
+    }
+    else{
+        while(vCtr < 16){
+            if(listOfPalettes[vCtr].size() == 0){
+                cout << "Dupa" << endl;
+            }
+            if(channel == 'r'){
+                if(color.r > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.r){
+                    vCtr++;
+                    continue;
+                }
+            }
+            else if(channel == 'g'){
+                if(color.g > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.g){
+                    vCtr++;
+                    continue;
+                }
+            }
+            else{
+                if(color.b > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.b){
+                    vCtr++;
+                    continue;
+                }
+            }
+
+            for(int i=0; i<listOfPalettes[vCtr].size(); i++){
+                if(color.r == listOfPalettes[vCtr][i].color.r && color.g == listOfPalettes[vCtr][i].color.g && color.b == listOfPalettes[vCtr][i].color.b){
+                    index = vCtr;
+                    break;
+                }
+            }
+            vCtr++;
+
+            if(index > -1){
+                return finalCustomPalette[index];
+            }
+        }
     }
 }
 
