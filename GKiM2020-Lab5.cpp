@@ -262,9 +262,9 @@ void defineProperties()
     else
     {
         cout << "Wybierz rodzaj palety uzywanej do zapisu bitmapy: \n\t 0 - dla palety wbudowanej \n\t 1 - dla palety zlozonej z odcieni szarosci \n\t 2 - dla palety dedykowanej";
-        // generujemy customowa palete, aby byla dostepna do podgladu //
-        customPaletteFunction();
+
         palette = preInspection(width, height, name_char);
+
         cout << "Twoj wybor: "<<palette<<endl;
         while(palette < 0 || palette > 2)
         {
@@ -415,23 +415,26 @@ void medianCut(){
 }
 
 void replacePixelsWithCustomPaletteColors(){
-    SDL_Color color;
-    bool findColor = false;
-    for(int y=0; y<wysokosc; y++){
-        for(int x=0; x<szerokosc; x++){
-            color = getPixel(x, y);
-            while(!findColor){
-                for(int j=0; j<listOfPalettes.size(); j++){
-                    for(int i=0; i<listOfPalettes[j].size(); i++){
-                        if(listOfPalettes[j][i].color.r == color.r &&  listOfPalettes[j][i].color.g == color.g && listOfPalettes[j][i].color.b == color.b){
-                            setPixel(x,y,finalCustomPalette[j].r, finalCustomPalette[j].g, finalCustomPalette[j].b);
-                            cout << "Ustawiam" << endl;
-                            // tu docelowo pewnie zapiszemy dane do tablicy, by mozna bylo je potem skompresowac i wpisac do pliku //
-                            findColor = true;
-                            break;
+    if(listOfPalettes.size() == 16){
+        SDL_Color color;
+        bool findColor = false;
+        int j = 0;
+        for(int y=0; y<wysokosc; y++){
+            for(int x=0; x<szerokosc; x++){
+                findColor = false;
+                color = getPixel(x, y);
+                while(!findColor){
+                    for(int j=0; j<16; j++){
+                        for(int i=0; i<listOfPalettes[j].size(); i++){
+                            if(listOfPalettes[j][i].color.r == color.r && listOfPalettes[j][i].color.g == color.g && listOfPalettes[j][i].color.b == color.b){
+                                setPixel(x,y,finalCustomPalette[j].r, finalCustomPalette[j].g, finalCustomPalette[j].b);
+                                // tu docelowo pewnie zapiszemy dane do tablicy, by mozna bylo je potem skompresowac i wpisac do pliku //
+                                findColor = true;
+                                break;
+                            }
                         }
+                        if(findColor) break;
                     }
-                    if(findColor) break;
                 }
             }
         }
@@ -651,6 +654,8 @@ int preInspection(int w, int h, char* name)
 
     bool done = false;
     SDL_Event event;
+    // generujemy customowa palete, aby byla dostepna do podgladu //
+        customPaletteFunction();
     // główna pętla programu
     while (SDL_WaitEvent(&event))
     {
