@@ -351,6 +351,7 @@ void medianCut(){
 
     while(listOfPalettes.size() < 16){
         for(int i=0; i<divisions; i++){
+            //cout << "Rozmiar itego elementu palety customowej: " << listOfPalettes[i].size() << endl;
             tmpPalette1.clear();
             tmpPalette2.clear();
             switch(channel){
@@ -380,7 +381,7 @@ void medianCut(){
                         }
                         break;
                     case 'g':
-                        if(v.color.g <= median + tmpColor.color.r){
+                        if(v.color.g <= median + tmpColor.color.g){
                             tmpPalette1.push_back(v);
                         }
                         else{
@@ -388,7 +389,7 @@ void medianCut(){
                         }
                         break;
                     case 'b':
-                        if(v.color.b <= median + tmpColor.color.r){
+                        if(v.color.b <= median + tmpColor.color.b){
                             tmpPalette1.push_back(v);
                         }
                         else{
@@ -408,7 +409,7 @@ void medianCut(){
         }
         tmpListOfPalettes.clear();
         divisions *= 2;
-        cout << "Rozmiar palety customowej: " << listOfPalettes.size() << endl;
+        //cout << "Rozmiar palety customowej na koncu petli: " << listOfPalettes.size() << ", divisions: " << divisions << endl;
     }
 
     generateCustomPalette();
@@ -442,15 +443,17 @@ void replacePixelsWithCustomPaletteColors(){
 }
 
 void generateCustomPalette(){
-    int avgR = 0, avgG = 0, avgB = 0, weightSum = 0;
+    int avgR = 0, avgG = 0, avgB = 0;
+    double weightSum = 0;
     SDL_Color finalColor;
-
+    //cout << "Rozmiar listy palet: " << listOfPalettes.size() << endl;
     for(int i=0; i<listOfPalettes.size(); i++){
         for(int j=0; j<listOfPalettes[i].size(); j++){
             avgR += listOfPalettes[i][j].color.r * listOfPalettes[i][j].counter;
             avgG += listOfPalettes[i][j].color.g * listOfPalettes[i][j].counter;
             avgB += listOfPalettes[i][j].color.b * listOfPalettes[i][j].counter;
             weightSum += listOfPalettes[i][j].counter;
+            //cout << "Weight sum: " << weightSum << ", counter: " << listOfPalettes[i][j].counter << endl;
         }
         avgR /= weightSum;
         avgG /= weightSum;
@@ -475,6 +478,7 @@ void generateCustomPalette(){
 void customPaletteFunction(){
     SDL_Color color;
     customPalette.clear();
+    listOfPalettes.clear();
     for(int y = 0; y < wysokosc; y++)
     {
         for(int x = 0; x < szerokosc; x++)
@@ -520,6 +524,10 @@ void customPaletteFunction(){
         }
     }
     else{
+        /*cout<<"Wszystkie kolory z obrazka:" << endl;
+        for(int i=0; i<customPalette.size(); i++){
+            cout << i << ": [" << (int)customPalette[i].color.r << ", " << (int)customPalette[i].color.g << ", " << (int)customPalette[i].color.b << "] (" << customPalette[i].counter << ")" << endl;
+        }*/
         medianCut();
     }
 }
