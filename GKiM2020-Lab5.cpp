@@ -25,7 +25,7 @@ SDL_Color getPixel (int x, int y);
 void czyscEkran(Uint8 R, Uint8 G, Uint8 B);
 
 void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp);
-void decodeHeader();
+int decodeHeader();
 void defineProperties();
 int preInspection(int w, int h, char* name);
 int preInspectionDithering(int w, int h, char* name,int palette);
@@ -126,18 +126,22 @@ void greyPaletteFunction()
 
 }
 
-void addErrToRGB(int c, int err, SDL_Color* bmp_map) {
-    if(c == 0) {
+void addErrToRGB(int c, int err, SDL_Color* bmp_map)
+{
+    if(c == 0)
+    {
         if( bmp_map->r + err > 255 ) bmp_map->r = 255;
         else if( bmp_map->r + err < 0 ) bmp_map->r = 0;
         else bmp_map->r += err;
     }
-    else if(c == 1) {
+    else if(c == 1)
+    {
         if( bmp_map->g + err > 255 ) bmp_map->g = 255;
         else if( bmp_map->g + err < 0 ) bmp_map->g = 0;
         else bmp_map->g += err;
     }
-    else if(c == 2) {
+    else if(c == 2)
+    {
         if( bmp_map->b + err > 255 ) bmp_map->b = 255;
         else if( bmp_map->b + err < 0 ) bmp_map->b = 0;
         else bmp_map->b += err;
@@ -152,9 +156,12 @@ void Dithering(int palette, char* name)
     SDL_Surface* bmp = SDL_LoadBMP(name);
     SDL_Color bmp_map[bmp->w][bmp->h];
 
-    for(int y=0; y<bmp->h; y++) {
-        for(int x=0; x<bmp->w; x++) {
-            if(palette == 1) {
+    for(int y=0; y<bmp->h; y++)
+    {
+        for(int x=0; x<bmp->w; x++)
+        {
+            if(palette == 1)
+            {
                 int R,G,B, BW;
                 color = getPixelSurface(x, y, bmp);
 
@@ -178,7 +185,8 @@ void Dithering(int palette, char* name)
         {
             color = bmp_map[x][y];
 
-            if(palette == 1) {
+            if(palette == 1)
+            {
                 int BW = color.r;
                 BW = round(BW * 15.0 / 255);
                 BW = BW * 255 / 15.0;
@@ -196,25 +204,29 @@ void Dithering(int palette, char* name)
             err_G = (int)color.g - (int)paletteColor.g;
             err_B = (int)color.b - (int)paletteColor.b;
 
-            if(x < (szerokosc - 1)) {
+            if(x < (szerokosc - 1))
+            {
                 addErrToRGB(0, ( err_R * 7/16 ), &bmp_map[x+1][y]);
                 addErrToRGB(1, ( err_G * 7/16 ), &bmp_map[x+1][y]);
                 addErrToRGB(2, ( err_B * 7/16 ), &bmp_map[x+1][y]);
             }
 
-            if(x > 0 && y < (wysokosc - 1) ) {
+            if(x > 0 && y < (wysokosc - 1) )
+            {
                 addErrToRGB(0, ( err_R * 3/16 ), &bmp_map[x-1][y+1]);
                 addErrToRGB(1, ( err_G * 3/16 ), &bmp_map[x-1][y+1]);
                 addErrToRGB(2, ( err_B * 3/16 ), &bmp_map[x-1][y+1]);
             }
 
-            if(y < (wysokosc - 1) ) {
+            if(y < (wysokosc - 1) )
+            {
                 addErrToRGB(0, ( err_R * 3/16 ), &bmp_map[x][y+1]);
                 addErrToRGB(1, ( err_G * 3/16 ), &bmp_map[x][y+1]);
                 addErrToRGB(2, ( err_B * 3/16 ), &bmp_map[x][y+1]);
             }
 
-            if(x < (szerokosc - 1) && y < (wysokosc - 1) ) {
+            if(x < (szerokosc - 1) && y < (wysokosc - 1) )
+            {
                 addErrToRGB(0, ( err_R * 3/16 ), &bmp_map[x+1][y+1]);
                 addErrToRGB(1, ( err_G * 3/16 ), &bmp_map[x+1][y+1]);
                 addErrToRGB(2, ( err_B * 3/16 ), &bmp_map[x+1][y+1]);
@@ -223,6 +235,477 @@ void Dithering(int palette, char* name)
     }
     SDL_UpdateWindowSurface(window);
 }
+
+int findColorInCustomPallette(SDL_Color color)
+{
+
+    for(int i=0; i<16; i++)
+    {
+        if(color.r == finalCustomPalette[i].r && color.g == finalCustomPalette[i].g && color.b == finalCustomPalette[i].b)
+        {
+            return i;
+        }
+    }
+
+}
+
+
+bool choseCompression(int palette)
+{
+
+    unsigned int counterRLE = 0, counterByteRun = 0;
+
+    Uint8 wejscie[(unsigned int)((unsigned int)wysokosc * (unsigned int)szerokosc)];
+    unsigned int index =0;
+    for(int y=0; y<wysokosc; y++)
+    {
+        for(int x=0; x<szerokosc; x++)
+        {
+
+            Uint8 temp = 0;
+            SDL_Color kolor;
+            kolor = getPixel(x,y);
+            switch(palette)
+            {
+
+            case 0:
+                Uint8 R,G,B;
+                R = (kolor.r / 255) * 8;
+                G = (kolor.g /85)  * 2;
+                B = kolor.b /255;
+                temp = R + G + B;
+                break;
+            case 1:
+                temp = kolor.r / 17;
+                break;
+            case 2:
+                temp = findColorInCustomPallette(kolor);
+                break;
+
+            }
+
+            wejscie[index] = temp;
+            index++;
+        }
+    }
+
+
+    unsigned int dlugosc = (unsigned int)wysokosc * (unsigned int)szerokosc;
+    int razy;
+    unsigned int i =0;
+    while(i<dlugosc)
+    {
+        if((i< dlugosc - 1) && (wejscie[i] == wejscie[i+1]))
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] == wejscie[i+j+1] && (j < 253)))
+            {
+                j++;
+            }
+            counterRLE +=2;
+            i += (j + 1);
+        }
+        else
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] != wejscie[i+j+1] && (j < 253)))
+            {
+                j++;
+            }
+            if(i+j == dlugosc -1 && j<253)
+            {
+                j++;
+            }
+            counterRLE += (j +2);
+            if(j%2 != 0)
+            {
+                counterRLE++;
+            }
+            i += j;
+        }
+    }
+
+
+    i =0;
+    while(i<dlugosc)
+    {
+        if((i< dlugosc - 1) && (wejscie[i] == wejscie[i+1]))
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] == wejscie[i+j+1] && (j < 126)))
+            {
+                j++;
+            }
+
+            counterByteRun+=2;
+            i += (j + 1);
+        }
+        //sekwencja różnych elementów
+        else
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] != wejscie[i+j+1] && (j < 126)))
+            {
+                j++;
+            }
+            if(i+j == dlugosc -1 && j<126)
+            {
+                j++;
+            }
+            counterByteRun+= (1 + j);
+            i += j;
+        }
+    }
+
+    if(counterRLE <= counterByteRun)
+    {
+        cout<<"Wybrano kompresje RLE"<<endl;
+        return false;
+    }
+    else
+    {
+        cout<<"Wybrano kompresje ByteRun"<<endl;
+        return true;
+    }
+
+}
+
+
+void ByteRun(int p, ofstream& wyjscie)
+{
+
+    Uint8 wejscie[(unsigned int)((unsigned int)wysokosc * (unsigned int)szerokosc)];
+    unsigned int index =0;
+    for(int y=0; y<wysokosc; y++)
+    {
+        for(int x=0; x<szerokosc; x++)
+        {
+
+            Uint8 temp = 0;
+            SDL_Color kolor;
+            kolor = getPixel(x,y);
+            switch(p)
+            {
+
+            case 0:
+                Uint8 R,G,B;
+                R = (kolor.r / 255) * 8;
+                G = (kolor.g /85)  * 2;
+                B = kolor.b /255;
+                temp = R + G + B;
+                break;
+            case 1:
+                temp = kolor.r / 17;
+                break;
+            case 2:
+                temp = findColorInCustomPallette(kolor);
+                break;
+
+            }
+
+            wejscie[index] = temp;
+            index++;
+        }
+    }
+
+    unsigned int dlugosc = (unsigned int)wysokosc * (unsigned int)szerokosc;
+    Uint8 pixel;
+    Uint8 razy;
+    int i =0;
+    //dopóki wszystkie bajty nie zostały przetworzone
+    while(i<dlugosc)
+    {
+
+        //sekwencja powtarzania co najmniej dwóch bajtów
+        if((i< dlugosc - 1) && (wejscie[i] == wejscie[i+1]))
+        {
+
+            //mierzymy długość sekwencji
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] == wejscie[i+j+1] && (j < 126)))
+            {
+                j++;
+            }
+
+            razy = 128 +  (j+1);
+            pixel = wejscie[i];
+            wyjscie.write((char*)&razy, sizeof(Uint8));
+            wyjscie.write((char*)&pixel, sizeof(Uint8));
+
+            i += (j + 1);
+        }
+        //sekwencja różnych elementów
+        else
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] != wejscie[i+j+1] && (j < 126)))
+            {
+                j++;
+            }
+            if(i+j == dlugosc -1 && j<126)
+            {
+                j++;
+            }
+            int ile =j;
+            wyjscie.write((char*)&ile, sizeof(Uint8));
+            for(int k =0; k<j; k++)
+            {
+                pixel = wejscie[i+k];
+                wyjscie.write((char*)&pixel, sizeof(Uint8));
+            }
+
+            i += j;
+        }
+    }
+
+
+}
+
+void RLE(int p, ofstream& wyjscie)
+{
+    Uint8 wejscie[(unsigned int)((unsigned int)wysokosc * (unsigned int)szerokosc)];
+    unsigned int index =0;
+    for(int y=0; y<wysokosc; y++)
+    {
+        for(int x=0; x<szerokosc; x++)
+        {
+
+            Uint8 temp = 0;
+            SDL_Color kolor;
+            kolor = getPixel(x,y);
+            switch(p)
+            {
+
+            case 0:
+                Uint8 R,G,B;
+                R = (kolor.r / 255) * 8;
+                G = (kolor.g /85)  * 2;
+                B = kolor.b /255;
+                temp = R + G + B;
+                break;
+            case 1:
+                temp = kolor.r / 17;
+                break;
+            case 2:
+                temp = findColorInCustomPallette(kolor);
+                break;
+
+            }
+
+            wejscie[index] = temp;
+            index++;
+        }
+    }
+
+
+    unsigned int dlugosc = (unsigned int)wysokosc * (unsigned int)szerokosc;
+    Uint8 pixel;
+    Uint8 razy;
+    unsigned int  i =0;
+    while(i<dlugosc)
+    {
+        if((i< dlugosc - 1) && (wejscie[i] == wejscie[i+1]))
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] == wejscie[i+j+1] && (j < 253)))
+            {
+                j++;
+            }
+
+            razy = j+1;
+            pixel = wejscie[i];
+
+            wyjscie.write((char*)&razy, sizeof(Uint8));
+            wyjscie.write((char*)&pixel, sizeof(Uint8));
+
+            i += (j + 1);
+        }
+        else
+        {
+            int j=0;
+            while((i+j < dlugosc -1) && (wejscie[i+j] != wejscie[i+j+1] && (j < 253)))
+            {
+                j++;
+            }
+            if(i+j == dlugosc -1 && j<253)
+            {
+                j++;
+            }
+            razy = 0;
+            wyjscie.write((char*)&razy, sizeof(Uint8));
+            int ile =j;
+            wyjscie.write((char*)&ile, sizeof(Uint8));
+            for(int k =0; k<j; k++)
+            {
+                pixel = wejscie[i+k];
+                wyjscie.write((char*)&pixel, sizeof(Uint8));
+            }
+            if(j%2 != 0)
+            {
+
+                pixel = 0;
+                wyjscie.write((char*)&pixel, sizeof(Uint8));
+            }
+            i += j;
+        }
+    }
+
+}
+
+
+void decodeColor(int p, Uint8 color,int x,int y)
+{
+    SDL_Color kolor;
+
+    switch(p)
+    {
+    case 0:
+        Uint8 R,G,B, temp;
+        temp = 8;
+        R = color & temp;
+        if(R > 0)
+        {
+            R = 255;
+        }
+        temp = 6;
+        G = color & temp;
+        G = (G/2) * 85;
+        temp = 1;
+        B = color & temp;
+        if(B>0)
+        {
+            B = 255;
+        }
+        kolor.r = (int)R;
+        kolor.g = (int)G;
+        kolor.b = (int)B;
+        //cout<<(int)R<<","<<(int)G<<","<<(int)B<<" "<<bitset<8>(color)<<endl;
+        break;
+
+    case 1:
+        Uint8 BW;
+        BW = color * 17;
+        kolor.r = BW;
+        kolor.g = BW;
+        kolor.b = BW;
+        break;
+    case 2:
+
+        kolor.r = finalCustomPalette[(int)color].r;
+        kolor.g = finalCustomPalette[(int)color].g;
+        kolor.b = finalCustomPalette[(int)color].b;
+       // cout<<(int)color<<" "<<(int)finalCustomPalette[(int)color].r<<endl;
+        break;
+
+
+    }
+
+    setPixel(x,y, kolor.r, kolor.g, kolor.b);
+
+
+}
+
+
+
+void ByteRunDecompression(int p, ifstream& wejscie)
+{
+
+    unsigned int counter =0;
+    int razy = 0;
+    int pixel =0;
+    int x=0;
+    int y=0;
+    int ile =0;
+    while(counter < (unsigned int)((unsigned int)wysokosc* (unsigned int)szerokosc)){
+
+        wejscie.read((char*)&razy, sizeof(Uint8));
+        if(razy > 128){
+            razy = razy - 128;
+            wejscie.read((char*)&pixel, sizeof(Uint8));
+            for(int i=0;i<razy;i++){
+            decodeColor(p,pixel,x,y);
+             x++;
+             counter++;
+             if(x>szerokosc-1){
+                x=0;
+                y++;
+             }
+
+            }
+        }
+        else{
+            for(int j=0;j<razy;j++){
+            wejscie.read((char*)&pixel, sizeof(Uint8));
+             decodeColor(p,pixel,x,y);
+             x++;
+             counter++;
+             if(x>szerokosc -1){
+                x=0;
+                y++;
+             }
+
+            }
+
+        }
+
+    }
+
+}
+
+
+void RLEDecompression(int p, ifstream& wejscie){
+
+    unsigned int counter =0;
+    int razy = 0;
+    int pixel =0;
+    int x=0;
+    int y=0;
+    int ile =0;
+    while(counter < (unsigned int)wysokosc*(unsigned int)szerokosc){
+
+        wejscie.read((char*)&razy, sizeof(Uint8));
+        if(razy > 0){
+            wejscie.read((char*)&pixel, sizeof(Uint8));
+            for(int i=0;i<razy;i++){
+             decodeColor(p,pixel,x,y);
+             x++;
+             counter++;
+             if(x>szerokosc-1){
+                x=0;
+                y++;
+             }
+            }
+
+        }
+        else{
+            bool parzysta = true;
+            wejscie.read((char*)&ile, sizeof(Uint8));
+            if(ile%2 != 0){
+            parzysta = false;
+            }
+            for(int j=0;j<ile;j++){
+            wejscie.read((char*)&pixel, sizeof(Uint8));
+             decodeColor(p,pixel,x,y);
+             x++;
+             counter++;
+             if(x>szerokosc-1){
+                x=0;
+                y++;
+             }
+
+            }
+            int tempZero;
+            if(!parzysta){
+               wejscie.read((char*)&tempZero, sizeof(Uint8));
+            }
+        }
+
+    }
+
+
+}
+
+
 
 
 void defineProperties()
@@ -277,8 +760,9 @@ void defineProperties()
         dithering = preInspectionDithering(width, height, name_char, palette);
         cout<< "Twoj wybor: "<<dithering<<endl;
 
-        cout << endl << "Konwertuje..." << endl << endl;
+        compression = choseCompression(palette);
 
+        cout << endl << "Konwertuje..." << endl << endl;
         encodeHeader(name, width, height, palette, dithering, compression, bmp);
     }
 };
@@ -289,9 +773,11 @@ int redL = 255, greenL = 255, blueL = 255, redH = 0, greenH = 0, blueH = 0;
 int redRange = 0, greenRange = 0, blueRange = 0;
 char channel;
 
-char findWidestRangeColor(){
+char findWidestRangeColor()
+{
 
-    for(colorPalette &element : customPalette){
+    for(colorPalette &element : customPalette)
+    {
         if(element.color.r > redH) redH = element.color.r;
         if(element.color.r < redL) redL = element.color.r;
         if(element.color.g > greenH) greenH = element.color.g;
@@ -305,42 +791,56 @@ char findWidestRangeColor(){
     blueRange = blueH - blueL;
 
     widestColor = max(max(redRange, greenRange), blueRange);
-    if(widestColor == redRange){
+    if(widestColor == redRange)
+    {
         return 'r';
     }
-    else if(widestColor == greenRange){
+    else if(widestColor == greenRange)
+    {
         return 'g';
     }
-    else{
+    else
+    {
         return 'b';
     }
 }
 
-void medianCut(){
+void medianCut()
+{
     int colorRange = 0, colorL = 0, colorH = 0;
     channel = findWidestRangeColor();
 
-    switch(channel){
-        case 'r':
-            sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.r < rhs.color.r;});
-            colorRange = redRange;
-            colorL = redL;
-            colorH = redH;
-            break;
-        case 'g':
-            sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.g < rhs.color.g;});
-            colorRange = greenRange;
-            colorL = greenL;
-            colorH = greenH;
-            break;
-        case 'b':
-            sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs){return lhs.color.b < rhs.color.b;});
-            colorRange = blueRange;
-            colorL = blueL;
-            colorH = blueH;
-            break;
-        default:
-            break;
+    switch(channel)
+    {
+    case 'r':
+        sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs)
+        {
+            return lhs.color.r < rhs.color.r;
+        });
+        colorRange = redRange;
+        colorL = redL;
+        colorH = redH;
+        break;
+    case 'g':
+        sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs)
+        {
+            return lhs.color.g < rhs.color.g;
+        });
+        colorRange = greenRange;
+        colorL = greenL;
+        colorH = greenH;
+        break;
+    case 'b':
+        sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs)
+        {
+            return lhs.color.b < rhs.color.b;
+        });
+        colorRange = blueRange;
+        colorL = blueL;
+        colorH = blueH;
+        break;
+    default:
+        break;
     }
 
     vector<vector<colorPalette>> tmpListOfPalettes;
@@ -351,77 +851,96 @@ void medianCut(){
     float median = 0;
     colorPalette tmpColor;
 
-    while(listOfPalettes.size() < 16){
-        for(int i=0; i<divisions; i++){
+    while(listOfPalettes.size() < 16)
+    {
+        for(int i=0; i<divisions; i++)
+        {
             tmpPalette1.clear();
             tmpPalette2.clear();
-            switch(channel){
-                case 'r':
-                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.r - listOfPalettes[i][0].color.r)/2.0;
-                     break;
-                case 'g':
-                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.g - listOfPalettes[i][0].color.g)/2.0;
-                    break;
-                case 'b':
-                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
-                    break;
-                default:
-                    cout << "Error" << endl;
-                    median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
-                    break;
+            switch(channel)
+            {
+            case 'r':
+                median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.r - listOfPalettes[i][0].color.r)/2.0;
+                break;
+            case 'g':
+                median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.g - listOfPalettes[i][0].color.g)/2.0;
+                break;
+            case 'b':
+                median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
+                break;
+            default:
+                cout << "Error" << endl;
+                median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
+                break;
             }
             //if(divisions==8){
-                cout << "Channel: " << channel << ", median: " << median << "Zakres: " << (int)listOfPalettes[i][0].color.b << " - " << (int)listOfPalettes[i][listOfPalettes[i].size()-1].color.b << endl;
+            //  cout << "Channel: " << channel << ", median: " << median << "Zakres: " << (int)listOfPalettes[i][0].color.b << " - " << (int)listOfPalettes[i][listOfPalettes[i].size()-1].color.b << endl;
             //}
-            if(median == 0){
-                for(int vCtr = 0; vCtr < listOfPalettes[i].size(); vCtr++){
-                    if(listOfPalettes[i][vCtr].color.b > 127 && listOfPalettes[i][vCtr].color.b < 155){
-                        cout << "vCtr: [" << (int)listOfPalettes[i][vCtr].color.r << ", " << (int)listOfPalettes[i][vCtr].color.g << ", " << (int)listOfPalettes[i][vCtr].color.b << "] " << endl;
+            if(median == 0)
+            {
+                for(int vCtr = 0; vCtr < listOfPalettes[i].size(); vCtr++)
+                {
+                    if(listOfPalettes[i][vCtr].color.b > 127 && listOfPalettes[i][vCtr].color.b < 155)
+                    {
+                        //   cout << "vCtr: [" << (int)listOfPalettes[i][vCtr].color.r << ", " << (int)listOfPalettes[i][vCtr].color.g << ", " << (int)listOfPalettes[i][vCtr].color.b << "] " << endl;
                     }
-                    if(vCtr % 2 == 0){
+                    if(vCtr % 2 == 0)
+                    {
                         tmpPalette1.push_back(listOfPalettes[i][vCtr]);
                     }
-                    else{
+                    else
+                    {
                         tmpPalette2.push_back(listOfPalettes[i][vCtr]);
                     }
                 }
             }
-            else{
+            else
+            {
                 tmpColor = listOfPalettes[i][0];
-                for(const auto &v : listOfPalettes[i]){
-                    if(v.color.b > 127 && v.color.b < 155){
-                        cout << "v: [" << (int)v.color.r << ", " << (int)v.color.g << ", " << (int)v.color.b << "] " << endl;
+                for(const auto &v : listOfPalettes[i])
+                {
+                    if(v.color.b > 127 && v.color.b < 155)
+                    {
+                        // cout << "v: [" << (int)v.color.r << ", " << (int)v.color.g << ", " << (int)v.color.b << "] " << endl;
                     }
-                    switch(channel){
-                        case 'r':
-                            if(v.color.r <= median + tmpColor.color.r){
-                                tmpPalette1.push_back(v);
-                            }
-                            else{
-                                tmpPalette2.push_back(v);
-                            }
-                            break;
-                        case 'g':
-                            if(v.color.g <= median + tmpColor.color.g){
-                                tmpPalette1.push_back(v);
-                            }
-                            else{
-                                tmpPalette2.push_back(v);
-                            }
-                            break;
-                        case 'b':
-                            if(v.color.b <= median + tmpColor.color.b){
-                                tmpPalette1.push_back(v);
-                            }
-                            else{
-                                tmpPalette2.push_back(v);
-                            }
-                            break;
-                        default:
-                            break;
+                    switch(channel)
+                    {
+                    case 'r':
+                        if(v.color.r <= median + tmpColor.color.r)
+                        {
+                            tmpPalette1.push_back(v);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(v);
+                        }
+                        break;
+                    case 'g':
+                        if(v.color.g <= median + tmpColor.color.g)
+                        {
+                            tmpPalette1.push_back(v);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(v);
+                        }
+                        break;
+                    case 'b':
+                        if(v.color.b <= median + tmpColor.color.b)
+                        {
+                            tmpPalette1.push_back(v);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(v);
+                        }
+                        break;
+                    default:
+                        break;
                     }
                 }
-                if(tmpPalette1.size() < (16/divisions)){
+                if(tmpPalette1.size() < (16/divisions))
+                {
 
                 }
             }
@@ -430,7 +949,8 @@ void medianCut(){
             tmpListOfPalettes.push_back(tmpPalette2);
         }
         listOfPalettes.clear();
-        for(int x=0; x<divisions*2; x++){
+        for(int x=0; x<divisions*2; x++)
+        {
             listOfPalettes.push_back(tmpListOfPalettes[x]);
         }
         tmpListOfPalettes.clear();
@@ -439,11 +959,15 @@ void medianCut(){
     generateCustomPalette();
 }
 
-void replacePixelsWithCustomPaletteColors(){
-    if(listOfPalettes.size() == 16){
+void replacePixelsWithCustomPaletteColors()
+{
+    if(listOfPalettes.size() == 16)
+    {
         SDL_Color color;
-        for(int y=0; y<wysokosc; y++){
-            for(int x=0; x<szerokosc; x++){
+        for(int y=0; y<wysokosc; y++)
+        {
+            for(int x=0; x<szerokosc; x++)
+            {
                 color = getPixel(x, y);
                 color = convertColorToCustomPalette(color);
                 setPixel(x, y, color.r, color.g, color.b);
@@ -452,13 +976,16 @@ void replacePixelsWithCustomPaletteColors(){
     }
 }
 
-void generateCustomPalette(){
+void generateCustomPalette()
+{
     double avgR = 0, avgG = 0, avgB = 0;
     double weightSum = 0;
     SDL_Color finalColor;
     //cout << "Rozmiar listy palet: " << listOfPalettes.size() << endl;
-    for(int i=0; i<listOfPalettes.size(); i++){
-        for(int j=0; j<listOfPalettes[i].size(); j++){
+    for(int i=0; i<listOfPalettes.size(); i++)
+    {
+        for(int j=0; j<listOfPalettes[i].size(); j++)
+        {
             avgR += listOfPalettes[i][j].color.r * listOfPalettes[i][j].counter;
             avgG += listOfPalettes[i][j].color.g * listOfPalettes[i][j].counter;
             avgB += listOfPalettes[i][j].color.b * listOfPalettes[i][j].counter;
@@ -480,12 +1007,14 @@ void generateCustomPalette(){
     }
 
     cout << "Customowa paleta: " << endl;
-    for(int a=0; a<16; a++){
+    for(int a=0; a<16; a++)
+    {
         cout << a << ": [" << (int)finalCustomPalette[a].r << ", " << (int)finalCustomPalette[a].g << ", " << (int)finalCustomPalette[a].b << "]" << endl;
     }
 }
 
-void customPaletteFunction(){
+void customPaletteFunction()
+{
     SDL_Color color;
     customPalette.clear();
     listOfPalettes.clear();
@@ -499,8 +1028,8 @@ void customPaletteFunction(){
             for(colorPalette &element : customPalette)
             {
                 if( (int)color.r == element.color.r &&
-                    (int)color.g == element.color.g &&
-                    (int)color.b == element.color.b )
+                        (int)color.g == element.color.g &&
+                        (int)color.b == element.color.b )
                 {
                     existFlag = true;
                     element.counter++;
@@ -522,62 +1051,82 @@ void customPaletteFunction(){
     blankColor.color.g = 0;
     blankColor.color.b = 0;
     blankColor.counter = -1;
-    if(customPalette.size() <= 16){
-        if(customPalette.size() < 16){
-            for(int i=0; i<16-customPalette.size(); i++){
+    if(customPalette.size() <= 16)
+    {
+        if(customPalette.size() < 16)
+        {
+            for(int i=0; i<16-customPalette.size(); i++)
+            {
                 customPalette.push_back(blankColor);
             }
         }
 
-        for(int c=0; c<16; c++){
+        for(int c=0; c<16; c++)
+        {
             finalCustomPalette[c] = customPalette[c].color;
         }
     }
-    else{
+    else
+    {
         medianCut();
     }
 }
 
-SDL_Color convertColorToCustomPalette(SDL_Color color){
+SDL_Color convertColorToCustomPalette(SDL_Color color)
+{
     int vCtr = 0, index = -1;
-    if(listOfPalettes.size() != 16){
-        for(int i=0; i<16; i++){
+    if(listOfPalettes.size() != 16)
+    {
+        for(int i=0; i<16; i++)
+        {
             if(color.r == finalCustomPalette[i].r && color.g == finalCustomPalette[i].g && color.b == finalCustomPalette[i].b) return finalCustomPalette[i];
         }
     }
-    else{
-        while(vCtr < 16){
-            if(listOfPalettes[vCtr].size() == 0){
+    else
+    {
+        while(vCtr < 16)
+        {
+            if(listOfPalettes[vCtr].size() == 0)
+            {
                 cout << "Dupa" << endl;
             }
-            if(channel == 'r'){
-                if(color.r > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.r){
+            if(channel == 'r')
+            {
+                if(color.r > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.r)
+                {
                     vCtr++;
                     continue;
                 }
             }
-            else if(channel == 'g'){
-                if(color.g > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.g){
+            else if(channel == 'g')
+            {
+                if(color.g > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.g)
+                {
                     vCtr++;
                     continue;
                 }
             }
-            else{
-                if(color.b > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.b){
+            else
+            {
+                if(color.b > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.b)
+                {
                     vCtr++;
                     continue;
                 }
             }
 
-            for(int i=0; i<listOfPalettes[vCtr].size(); i++){
-                if(color.r == listOfPalettes[vCtr][i].color.r && color.g == listOfPalettes[vCtr][i].color.g && color.b == listOfPalettes[vCtr][i].color.b){
+            for(int i=0; i<listOfPalettes[vCtr].size(); i++)
+            {
+                if(color.r == listOfPalettes[vCtr][i].color.r && color.g == listOfPalettes[vCtr][i].color.g && color.b == listOfPalettes[vCtr][i].color.b)
+                {
                     index = vCtr;
                     break;
                 }
             }
             vCtr++;
 
-            if(index > -1){
+            if(index > -1)
+            {
                 return finalCustomPalette[index];
             }
         }
@@ -636,12 +1185,26 @@ void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface*
             wyjscie.write((char*)&finalCustomPalette[i].b, sizeof(Uint8));
         }
     }
+
+    if(c)
+    {
+
+        ByteRun(p,wyjscie);
+    }
+    else
+    {
+        RLE(p,wyjscie);
+    }
+
+
+
+
     SDL_DestroyWindow(window);
     SDL_Quit();
     wyjscie.close();
 }
 
-void decodeHeader()
+int decodeHeader()
 {
     char identyfikator[] = "    ";
     Uint16 szerokoscObrazka = 0;
@@ -681,6 +1244,92 @@ void decodeHeader()
     cout << "dithering: " << dithering << endl;
     cout << "kompresja: " << kompresja << endl;
 
+    wysokosc = wysokoscObrazka;
+    szerokosc = szerokoscObrazka;
+    //jeśli paleta dedykowana oczytujemy ją
+    if((int)rodzajPalety == 2)
+    {
+        for(int i=0; i<16; i++)
+        {
+            SDL_Color kolor;
+            Uint8 R,G,B;
+
+            wejscie.read((char*)&R, sizeof(Uint8));
+            wejscie.read((char*)&G, sizeof(Uint8));
+            wejscie.read((char*)&B, sizeof(Uint8));
+            kolor.r  =R;
+            kolor.g = G;
+            kolor.b = B;
+            finalCustomPalette[i] = kolor;
+        }
+    }
+    // przygotowanie okna
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+    {
+        printf("SDL_Init Error: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+
+    window = SDL_CreateWindow(tytul, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, szerokosc*2, wysokosc*2, SDL_WINDOW_SHOWN);
+
+    if (window == NULL)
+    {
+        printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+
+    screen = SDL_GetWindowSurface(window);
+    if (screen == NULL)
+    {
+        fprintf(stderr, "SDL_GetWindowSurface Error: %s\n", SDL_GetError());
+        return false;
+    }
+    SDL_UpdateWindowSurface(window);
+
+    //wybieramy sposób dekompresji
+    if((int)kompresja == 1 )
+    {
+        ByteRunDecompression((int)rodzajPalety, wejscie);
+    }
+    else
+    {
+       RLEDecompression((int)rodzajPalety, wejscie);
+    }
+    SDL_UpdateWindowSurface(window);
+    bool done = false;
+    SDL_Event event;
+    while (SDL_WaitEvent(&event))
+    {
+        switch (event.type)
+        {
+        case SDL_QUIT:
+            done = true;
+            break;
+        case SDL_KEYDOWN:
+        {
+            if (event.key.keysym.sym == SDLK_ESCAPE)
+                done = true;
+            else
+                break;
+        }
+        }
+        if (done) break;
+    }
+
+    if (screen)
+    {
+        SDL_FreeSurface(screen);
+    }
+
+    if (window)
+    {
+        SDL_DestroyWindow(window);
+    }
+
+
+    SDL_Quit();
+
+
     wejscie.close();
 }
 
@@ -715,7 +1364,7 @@ int preInspection(int w, int h, char* name)
     bool done = false;
     SDL_Event event;
     // generujemy customowa palete, aby byla dostepna do podgladu //
-        customPaletteFunction();
+    customPaletteFunction();
     // główna pętla programu
     while (SDL_WaitEvent(&event))
     {
@@ -827,7 +1476,8 @@ int preInspectionDithering(int w, int h, char* name, int palette)
                 SDL_UpdateWindowSurface(window);
 
             }
-            else{
+            else
+            {
                 break;
             }
         }
