@@ -52,6 +52,7 @@ void generateCustomPalette();
 void customPaletteFunction();
 void replacePixelsWithCustomPaletteColors();
 SDL_Color convertColorToCustomPalette(SDL_Color color);
+SDL_Color convertColorToCustomPalette2(SDL_Color color);
 
 SDL_Color pixelToPreDefPalette(SDL_Color color)
 {
@@ -195,10 +196,11 @@ void Dithering(int palette, char* name)
                 paletteColor.b = BW;
             }
             else if(palette == 0) paletteColor = pixelToPreDefPalette(color);
-            else if(palette == 2) paletteColor = pixelToPreDefPalette(color);
+            else if(palette == 2) {
+                paletteColor = convertColorToCustomPalette2(color);
+            }
 
-
-            setPixel(x, y, (int)paletteColor.r, (int)paletteColor.g, (int)paletteColor.b);
+            setPixel(x, y, paletteColor.r, paletteColor.g, paletteColor.b);
 
             err_R = (int)color.r - (int)paletteColor.r;
             err_G = (int)color.g - (int)paletteColor.g;
@@ -969,7 +971,7 @@ void replacePixelsWithCustomPaletteColors()
             for(int x=0; x<szerokosc; x++)
             {
                 color = getPixel(x, y);
-                color = convertColorToCustomPalette(color);
+                color = convertColorToCustomPalette2(color);
                 setPixel(x, y, color.r, color.g, color.b);
             }
         }
@@ -1131,6 +1133,21 @@ SDL_Color convertColorToCustomPalette(SDL_Color color)
             }
         }
     }
+}
+
+SDL_Color convertColorToCustomPalette2(SDL_Color color) {
+        int error_rgb[16]{};
+
+        for(int i = 0; i < 16; i++) {
+            error_rgb[i] = abs( (int)color.r - (int)finalCustomPalette[i].r ) * 0.299 + abs( (int)color.g - (int)finalCustomPalette[i].g ) * 0.587 + abs( (int)color.b - (int)finalCustomPalette[i].b * 0.114 );
+        }
+
+        int index = 0;
+        for(int i = 0; i < 16; i++) {
+            if(error_rgb[index] > error_rgb[i] ) index = i;
+        }
+
+        return finalCustomPalette[index];
 }
 
 void encodeHeader(string name, int w, int h, int p, bool d, bool c, SDL_Surface* bmp)
