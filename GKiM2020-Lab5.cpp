@@ -852,6 +852,9 @@ void medianCut()
     vector<colorPalette> tmpPalette2;
     float median = 0;
     colorPalette tmpColor;
+    vector<int> maxColors;
+    int maxColorsCut = 0;
+    int index = 0;
 
     while(listOfPalettes.size() < 16)
     {
@@ -875,25 +878,27 @@ void medianCut()
                 median = (listOfPalettes[i][listOfPalettes[i].size()-1].color.b - listOfPalettes[i][0].color.b)/2.0;
                 break;
             }
-            //if(divisions==8){
-            //  cout << "Channel: " << channel << ", median: " << median << "Zakres: " << (int)listOfPalettes[i][0].color.b << " - " << (int)listOfPalettes[i][listOfPalettes[i].size()-1].color.b << endl;
-            //}
             if(median == 0)
             {
-                for(int vCtr = 0; vCtr < listOfPalettes[i].size(); vCtr++)
-                {
-                    if(listOfPalettes[i][vCtr].color.b > 127 && listOfPalettes[i][vCtr].color.b < 155)
+                if(listOfPalettes[i].size()>1){
+                    for(int vCtr = 0; vCtr < listOfPalettes[i].size(); vCtr++)
                     {
-                        //   cout << "vCtr: [" << (int)listOfPalettes[i][vCtr].color.r << ", " << (int)listOfPalettes[i][vCtr].color.g << ", " << (int)listOfPalettes[i][vCtr].color.b << "] " << endl;
+                        if(vCtr % 2 == 0)
+                        {
+                            tmpPalette1.push_back(listOfPalettes[i][vCtr]);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(listOfPalettes[i][vCtr]);
+                        }
                     }
-                    if(vCtr % 2 == 0)
-                    {
-                        tmpPalette1.push_back(listOfPalettes[i][vCtr]);
-                    }
-                    else
-                    {
-                        tmpPalette2.push_back(listOfPalettes[i][vCtr]);
-                    }
+                    maxColors.push_back(tmpPalette1.size());
+                    maxColors.push_back(tmpPalette2.size());
+                }
+                else{
+                    maxColorsCut++;
+                    maxColors.push_back(1);
+                    tmpPalette1.push_back(listOfPalettes[i][0]);
                 }
             }
             else
@@ -901,10 +906,6 @@ void medianCut()
                 tmpColor = listOfPalettes[i][0];
                 for(const auto &v : listOfPalettes[i])
                 {
-                    if(v.color.b > 127 && v.color.b < 155)
-                    {
-                        // cout << "v: [" << (int)v.color.r << ", " << (int)v.color.g << ", " << (int)v.color.b << "] " << endl;
-                    }
                     switch(channel)
                     {
                     case 'r':
@@ -941,15 +942,99 @@ void medianCut()
                         break;
                     }
                 }
-                if(tmpPalette1.size() < (16/divisions))
-                {
-
-                }
+                maxColors.push_back(tmpPalette1.size());
+                maxColors.push_back(tmpPalette2.size());
             }
 
             tmpListOfPalettes.push_back(tmpPalette1);
-            tmpListOfPalettes.push_back(tmpPalette2);
+            if(listOfPalettes[i].size() > 1){
+                tmpListOfPalettes.push_back(tmpPalette2);
+            }
         }
+
+        for(int additionalCut=0; additionalCut<maxColorsCut; additionalCut++){
+            index = max_element(maxColors.begin(),maxColors.end()) - maxColors.begin();
+            tmpPalette1.clear();
+            tmpPalette2.clear();
+            switch(channel)
+            {
+            case 'r':
+                median = (tmpListOfPalettes[index][tmpListOfPalettes[index].size()-1].color.r - tmpListOfPalettes[index][0].color.r)/2.0;
+                break;
+            case 'g':
+                median = (tmpListOfPalettes[index][tmpListOfPalettes[index].size()-1].color.g - tmpListOfPalettes[index][0].color.g)/2.0;
+                break;
+            case 'b':
+                median = (tmpListOfPalettes[index][tmpListOfPalettes[index].size()-1].color.b - tmpListOfPalettes[index][0].color.b)/2.0;
+                break;
+            default:
+                cout << "Error" << endl;
+                median = (tmpListOfPalettes[index][tmpListOfPalettes[index].size()-1].color.b - tmpListOfPalettes[index][0].color.b)/2.0;
+                break;
+            }
+
+            if(median == 0){
+                    for(int vCtr = 0; vCtr < tmpListOfPalettes[index].size(); vCtr++)
+                    {
+                        if(vCtr % 2 == 0)
+                        {
+                            tmpPalette1.push_back(tmpListOfPalettes[index][vCtr]);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(tmpListOfPalettes[index][vCtr]);
+                        }
+                    }
+            }
+            else{
+                tmpColor = tmpListOfPalettes[index][0];
+                for(const auto &v : tmpListOfPalettes[index])
+                {
+                    switch(channel)
+                    {
+                    case 'r':
+                        if(v.color.r <= median + tmpColor.color.r)
+                        {
+                            tmpPalette1.push_back(v);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(v);
+                        }
+                        break;
+                    case 'g':
+                        if(v.color.g <= median + tmpColor.color.g)
+                        {
+                            tmpPalette1.push_back(v);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(v);
+                        }
+                        break;
+                    case 'b':
+                        if(v.color.b <= median + tmpColor.color.b)
+                        {
+                            tmpPalette1.push_back(v);
+                        }
+                        else
+                        {
+                            tmpPalette2.push_back(v);
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+            tmpListOfPalettes.erase(tmpListOfPalettes.begin()+index);
+            tmpListOfPalettes.insert(tmpListOfPalettes.begin()+index, tmpPalette1);
+            tmpListOfPalettes.insert(tmpListOfPalettes.begin()+index+1, tmpPalette2);
+            maxColors[index] = tmpPalette1.size();
+            maxColors.insert(maxColors.begin()+index+1, tmpPalette2.size());
+        }
+
+        maxColors.clear();
         listOfPalettes.clear();
         for(int x=0; x<divisions*2; x++)
         {
@@ -1088,10 +1173,6 @@ SDL_Color convertColorToCustomPalette(SDL_Color color)
     {
         while(vCtr < 16)
         {
-            if(listOfPalettes[vCtr].size() == 0)
-            {
-                cout << "Dupa" << endl;
-            }
             if(channel == 'r')
             {
                 if(color.r > listOfPalettes[vCtr][listOfPalettes[vCtr].size()-1].color.r)
