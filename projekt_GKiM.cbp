@@ -2,7 +2,7 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="GKiM2020-Lab5" />
+		<Option title="projekt_GKiM" />
 		<Option execution_dir="./" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
@@ -49,11 +49,8 @@
 		<ExtraCommands>
 			<Add after="XCOPY .\SDL2\bin\*.dll $(TARGET_OUTPUT_DIR) /D /Y" />
 		</ExtraCommands>
-		<Unit filename="./GKiM2020-Lab5.cpp" />
+		<Unit filename="projekt_GKiM.cpp" />
 		<Extensions>
-			<code_completion />
-			<envvars />
-			<debugger />
 			<lib_finder disable_auto="1" />
 		</Extensions>
 	</Project>
