@@ -2103,7 +2103,7 @@
 	<math.h>
 	<algorithm>
 
-1611766619 source:c:\users\lukas\documents\codeblock\gkim_project\projekt_gkim.cpp
+1611776098 source:c:\users\lukas\documents\codeblock\gkim_project\projekt_gkim.cpp
 	<exception>
 	<string.h>
 	<iostream>
@@ -2115,4 +2115,5 @@
 	<vector>
 	<math.h>
 	<algorithm>
+	<unordered_map>
 

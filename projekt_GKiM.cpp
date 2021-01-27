@@ -9,6 +9,7 @@
 #include <vector>
 #include <math.h>
 #include <algorithm>
+#include <unordered_map>
 
 using namespace std;
 
@@ -1055,8 +1056,6 @@ void medianCut()
 
 void replacePixelsWithCustomPaletteColors()
 {
-    if(listOfPalettes.size() == 16)
-    {
         SDL_Color color;
         for(int y=0; y<wysokosc; y++)
         {
@@ -1067,7 +1066,6 @@ void replacePixelsWithCustomPaletteColors()
                 setPixel(x, y, color.r, color.g, color.b);
             }
         }
-    }
 };
 
 void generateCustomPalette()
@@ -1106,49 +1104,71 @@ void generateCustomPalette()
     }
 }
 
+namespace std {
+    struct Key
+    {
+      int r;
+      int g;
+      int b;
+
+      bool operator==(const Key &other) const
+      { return (r == other.r
+                && g == other.g
+                && b == other.b);
+      }
+    };
+
+
+    template <>
+    struct hash<Key>
+    {
+        std::size_t operator()(const Key& k) const
+        {
+            using std::size_t;
+            using std::hash;
+
+            return ((hash<int>()(k.r)
+            ^ (hash<int>()(k.g) << 1)) >> 1)
+            ^ (hash<int>()(k.b) << 1);
+            }
+    };
+}
+
 void customPaletteFunction()
 {
-    long long cou = 0;
     SDL_Color color;
     customPalette.clear();
     listOfPalettes.clear();
+
+    unordered_map<Key, int> mapOfPalette;
+
     for(int y = 0; y < wysokosc; y++)
     {
         for(int x = 0; x < szerokosc; x++)
         {
             color = getPixel(x, y);
-
-            bool existFlag = false;
-            int l = 0;
-            int r = customPalette.size() - 1;
-            int m = 0;
-            int i = 0;
-
-            while(l <= r) {
-                i++;
-                m = l + (r - l)/2;
-                if (customPalette[m].color.r == color.r) {
-                    existFlag = true;
-                    customPalette[m].counter++;
-                    break;
-                }
-                else if(customPalette[m].color.r > color.r) r = m - 1;
-                else l = m + 1;
-            }
-
-            if(!existFlag)
+            auto it = mapOfPalette.find( {(int)color.r, (int)color.g, (int)color.b} );
+            if(it == mapOfPalette.end() )
             {
-                colorPalette newColor;
-                newColor.color = color;
-                newColor.counter++;
-                customPalette.push_back(newColor);
-                sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs)
-                {
-                    return lhs.color.r < rhs.color.r;
-                });
+                mapOfPalette.insert( {{(int)color.r, (int)color.g, (int)color.b}, 1} );
+            }
+            else
+            {
+                it->second++;
             }
         }
     }
+
+    for (const auto &entry: mapOfPalette)
+    {
+        colorPalette newColor;
+        newColor.color.r = entry.first.r;
+        newColor.color.g = entry.first.g;
+        newColor.color.b = entry.first.b;
+        newColor.counter = entry.second;
+        customPalette.push_back(newColor);
+    }
+
     colorPalette blankColor;
     blankColor.color.a = 1;
     blankColor.color.r = 0;
@@ -1159,7 +1179,8 @@ void customPaletteFunction()
     {
         if(customPalette.size() < 16)
         {
-            for(int i=0; i<16-(int)customPalette.size(); i++)
+            int temp = (int)customPalette.size();
+            for(int i=0; i < (16 - temp); i++)
             {
                 customPalette.push_back(blankColor);
             }
@@ -1169,6 +1190,7 @@ void customPaletteFunction()
         {
             finalCustomPalette[c] = customPalette[c].color;
         }
+
     }
     else
     {
@@ -1240,10 +1262,7 @@ SDL_Color convertColorToCustomPalette2(SDL_Color color)
 
     for(int i = 0; i < 16; i++)
     {
-        if(finalCustomPalette[i].a != 1) {
-            error_rgb[i] = abs( (int)color.r - (int)finalCustomPalette[i].r ) * 0.299 + abs( (int)color.g - (int)finalCustomPalette[i].g ) * 0.587 + abs( (int)color.b - (int)finalCustomPalette[i].b * 0.114 );
-        }
-        else error_rgb[i] = 666; // tajna liczba
+        error_rgb[i] = abs( (int)color.r - (int)finalCustomPalette[i].r ) * 0.299 + abs( (int)color.g - (int)finalCustomPalette[i].g ) * 0.587 + abs( (int)color.b - (int)finalCustomPalette[i].b * 0.114 );
     }
 
     int index = 0;
@@ -1251,6 +1270,7 @@ SDL_Color convertColorToCustomPalette2(SDL_Color color)
     {
         if(error_rgb[index] > error_rgb[i] ) index = i;
     }
+
     return finalCustomPalette[index];
 }
 
