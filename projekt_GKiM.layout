@@ -4,7 +4,38 @@
 	<ActiveTarget name="Debug" />
 	<File name="projekt_GKiM.cpp" open="1" top="1" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="981" topLine="28" />
+			<Cursor1 position="35045" topLine="276" />
 		</Cursor>
+		<Folding>
+			<Collapse line="79" />
+			<Collapse line="99" />
+			<Collapse line="114" />
+			<Collapse line="130" />
+			<Collapse line="242" />
+			<Collapse line="256" />
+			<Collapse line="375" />
+			<Collapse line="465" />
+			<Collapse line="556" />
+			<Collapse line="604" />
+			<Collapse line="656" />
+			<Collapse line="718" />
+			<Collapse line="782" />
+			<Collapse line="814" />
+			<Collapse line="1056" />
+			<Collapse line="1073" />
+			<Collapse line="1179" />
+			<Collapse line="1314" />
+			<Collapse line="1521" />
+			<Collapse line="1582" />
+			<Collapse line="1659" />
+			<Collapse line="1705" />
+			<Collapse line="1729" />
+			<Collapse line="1753" />
+			<Collapse line="1777" />
+			<Collapse line="1783" />
+		</Folding>
 	</File>
+	<Target name="Debug" top="projekt_GKiM.cpp">
+		<File name="projekt_GKiM.cpp" />
+	</Target>
 </CodeBlocks_layout_file>

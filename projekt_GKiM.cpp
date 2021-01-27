@@ -253,7 +253,6 @@ int findColorInCustomPallette(SDL_Color color)
 
 };
 
-
 bool choseCompression(int palette)
 {
 
@@ -372,7 +371,6 @@ bool choseCompression(int palette)
     }
 
 };
-
 
 void ByteRun(int p, ofstream& wyjscie)
 {
@@ -555,7 +553,6 @@ void RLE(int p, ofstream& wyjscie)
 
 };
 
-
 void decodeColor(int p, Uint8 color,int x,int y)
 {
     SDL_Color kolor;
@@ -603,8 +600,6 @@ void decodeColor(int p, Uint8 color,int x,int y)
     setPixel(x,y, kolor.r, kolor.g, kolor.b);
 
 };
-
-
 
 void ByteRunDecompression(int p, ifstream& wejscie)
 {
@@ -657,7 +652,6 @@ void ByteRunDecompression(int p, ifstream& wejscie)
     }
 
 };
-
 
 void RLEDecompression(int p, ifstream& wejscie)
 {
@@ -721,9 +715,6 @@ void RLEDecompression(int p, ifstream& wejscie)
 
 };
 
-
-
-
 void defineProperties()
 {
     string name;
@@ -782,7 +773,6 @@ void defineProperties()
         encodeHeader(name, width, height, palette, dithering, compression, bmp);
     }
 };
-
 
 int widestColor = 0;
 int redL = 255, greenL = 255, blueL = 255, redH = 0, greenH = 0, blueH = 0;
@@ -1118,6 +1108,7 @@ void generateCustomPalette()
 
 void customPaletteFunction()
 {
+    long long cou = 0;
     SDL_Color color;
     customPalette.clear();
     listOfPalettes.clear();
@@ -1128,15 +1119,21 @@ void customPaletteFunction()
             color = getPixel(x, y);
 
             bool existFlag = false;
-            for(colorPalette &element : customPalette)
-            {
-                if( (int)color.r == element.color.r &&
-                        (int)color.g == element.color.g &&
-                        (int)color.b == element.color.b )
-                {
+            int l = 0;
+            int r = customPalette.size() - 1;
+            int m = 0;
+            int i = 0;
+
+            while(l <= r) {
+                i++;
+                m = l + (r - l)/2;
+                if (customPalette[m].color.r == color.r) {
                     existFlag = true;
-                    element.counter++;
+                    customPalette[m].counter++;
+                    break;
                 }
+                else if(customPalette[m].color.r > color.r) r = m - 1;
+                else l = m + 1;
             }
 
             if(!existFlag)
@@ -1145,6 +1142,10 @@ void customPaletteFunction()
                 newColor.color = color;
                 newColor.counter++;
                 customPalette.push_back(newColor);
+                sort(customPalette.begin(), customPalette.end(),[](const colorPalette &lhs, const colorPalette &rhs)
+                {
+                    return lhs.color.r < rhs.color.r;
+                });
             }
         }
     }
@@ -1239,7 +1240,10 @@ SDL_Color convertColorToCustomPalette2(SDL_Color color)
 
     for(int i = 0; i < 16; i++)
     {
-        error_rgb[i] = abs( (int)color.r - (int)finalCustomPalette[i].r ) * 0.299 + abs( (int)color.g - (int)finalCustomPalette[i].g ) * 0.587 + abs( (int)color.b - (int)finalCustomPalette[i].b * 0.114 );
+        if(finalCustomPalette[i].a != 1) {
+            error_rgb[i] = abs( (int)color.r - (int)finalCustomPalette[i].r ) * 0.299 + abs( (int)color.g - (int)finalCustomPalette[i].g ) * 0.587 + abs( (int)color.b - (int)finalCustomPalette[i].b * 0.114 );
+        }
+        else error_rgb[i] = 666; // tajna liczba
     }
 
     int index = 0;
@@ -1247,7 +1251,6 @@ SDL_Color convertColorToCustomPalette2(SDL_Color color)
     {
         if(error_rgb[index] > error_rgb[i] ) index = i;
     }
-
     return finalCustomPalette[index];
 }
 
@@ -1515,8 +1518,6 @@ int preInspection(int w, int h, char* name)
     return out;
 }
 
-
-
 int preInspectionDithering(int w, int h, char* name, int palette)
 {
     cout << endl << "(za pomoca klawiszy '0','1' podgląd z ditheringiem lub bez,  Esc - aby przejsc dalej)"<< endl;
@@ -1577,8 +1578,6 @@ int preInspectionDithering(int w, int h, char* name, int palette)
 
     return out;
 }
-
-
 
 void setPixel(int x, int y, Uint8 R, Uint8 G, Uint8 B)
 {
@@ -1751,7 +1750,6 @@ SDL_Color getPixelSurface(int x, int y, SDL_Surface *surface)
     return ( color ) ;
 }
 
-
 void ladujBMP(char const* nazwa, int x, int y)
 {
     SDL_Surface* bmp = SDL_LoadBMP(nazwa);
@@ -1776,14 +1774,11 @@ void ladujBMP(char const* nazwa, int x, int y)
 
 }
 
-
 void czyscEkran(Uint8 R, Uint8 G, Uint8 B)
 {
     SDL_FillRect(screen, 0, SDL_MapRGB(screen->format, R, G, B));
     SDL_UpdateWindowSurface(window);
 }
-
-
 
 int main(int argc, char* argv[])
 {

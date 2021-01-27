@@ -2103,3 +2103,16 @@
 	<math.h>
 	<algorithm>
 
+1611766619 source:c:\users\lukas\documents\codeblock\gkim_project\projekt_gkim.cpp
+	<exception>
+	<string.h>
+	<iostream>
+	<fstream>
+	<stdio.h>
+	<stdlib.h>
+	<SDL2/SDL.h>
+	<bitset>
+	<vector>
+	<math.h>
+	<algorithm>
+
